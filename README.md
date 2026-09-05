@@ -6,44 +6,32 @@
 
 Project RAV3N is a rugged, modular Raspberry Pi 5 field-computing platform combining cyber-security, networking, DFIR, communications, navigation, RF and hardware-lab capabilities in a portable field terminal.
 
-## Platform identity
+## FIELD//OS V0.5
 
-| Field | Designation |
-|---|---|
-| Platform | RAVEN |
-| Unit | RVN-01 |
-| Role | Field Operations Terminal |
-| Software | FIELD//OS |
-| Hardware | REV A |
-| Status | DEVELOPMENT |
+FIELD//OS is built around the physical 7-inch 800×480 RVN-01 display. The interface uses progressive full-screen views so the current task receives the usable display area.
 
-## FIELD//OS V0.4
-
-FIELD//OS is now designed around the physical 7-inch 800×480 RVN-01 display rather than a desktop-style dashboard. The interface uses progressive full-screen views so the current task gets the available display area.
-
-Primary navigation:
+Primary workflow:
 
 `HOME -> MODULE -> TOOL -> RECIPE -> TERMINAL`
 
-FIELD//OS V0.4 adds a persistent field-operations layer on top of the V0.3 appliance interface:
+FIELD//OS V0.5 now includes:
 
-- Persistent operation/session records stored under `~/.fieldos/sessions/` by default
-- Automatic `notes/`, `scans/`, `captures/`, `evidence/` and `exports/` directories per operation
+- Persistent operations/sessions under `~/.fieldos/sessions/`
+- Per-operation `notes/`, `scans/`, `captures/`, `evidence/` and `exports/` directories
 - Timestamped operation notes
-- Active operation identity in the compact top status bar
+- ZIP export snapshots for the active operation
 - Full-screen live local terminal with independent terminal sessions and command history
-- Tool recipes staged into the terminal for review/editing before execution
-- Guided operator playbooks for Network Triage, Windows IR, Evidence Intake, Wireless Survey and RF Observation
-- Playbook steps can stage example commands directly into the terminal
-- Global tool/recipe search, installed-tool detection and compact system status
+- Curated tool recipes staged for review/editing before execution
+- Guided Network Triage, Windows IR, Evidence Intake, Wireless Survey and RF Observation playbooks
+- Persistent favourite tools and recent-tool history
+- Bundled offline knowledge reference entries
+- Combined global search across tools, recipes, commands and offline knowledge
+- Optional local documentation/repository indexing via `FIELDOS_KNOWLEDGE_PATHS`
+- Local SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc RedTeam-Tools checkouts can be indexed without automatically installing their referenced tools
 
 Current primary libraries:
 
 `BLUE // RED // NETWORK // FORENSICS // FIELD // COMMS // HARDWARE // RF // UTILITIES`
-
-The tool manifest includes Nmap, Wireshark/tshark, tcpdump, Kismet, Zeek, mtr, iperf3, YARA, Sigma, Chainsaw, Hayabusa, osquery, Suricata, Nuclei, Amass, Volatility 3, Binwalk, ExifTool, hashdeep, Meshtastic, gpsd, qFlipper, sigrok, rtl_433, rtl_power, Gqrx, CyberChef, jq, yq, ripgrep, fzf, OpenSSL, curl, tmux, btop and more.
-
-Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc RedTeam-Tools are treated as knowledge sources rather than instructions to install every referenced tool.
 
 ## Controls
 
@@ -51,6 +39,9 @@ Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc 
 - `Right / Enter` — open/select/stage
 - `Left / Esc` — back
 - `/` — global search
+- `K` — offline knowledge
+- `F` — favourites; from a tool page, toggle that tool as favourite
+- `R` — recent tools
 - `F1` — help
 - `F2` — terminal
 - `F3` — operations/sessions
@@ -66,7 +57,29 @@ Inside the terminal:
 - `F7` — close terminal
 - `F8` — clear terminal
 
-Inside Operations, press `N` to create a new operation. Inside Notes, press `N` to add a timestamped note.
+Inside Operations, press `N` to create a new operation and `E` to export the active operation as a ZIP snapshot. Inside Notes, press `N` to add a timestamped note.
+
+## Offline knowledge
+
+Bundled FIELD//OS reference content lives in `config/knowledge/core.yaml`.
+
+To index local documentation or repository checkouts, set `FIELDOS_KNOWLEDGE_PATHS` before launching FIELD//OS. Multiple locations can be supplied using the host operating system path separator.
+
+Windows PowerShell example:
+
+```powershell
+$env:FIELDOS_KNOWLEDGE_PATHS="C:\Tools\CyberDeck;C:\Tools\BlueTeam-Tools;C:\Tools\RedTeam-Tools"
+fieldos
+```
+
+Linux example:
+
+```bash
+export FIELDOS_KNOWLEDGE_PATHS="$HOME/tools/CyberDeck:$HOME/tools/BlueTeam-Tools:$HOME/tools/RedTeam-Tools"
+fieldos
+```
+
+FIELD//OS indexes Markdown, text, RST, YAML and JSON locally. The adapter is an offline search layer; it does not automatically install tools.
 
 ## Run the development build
 
@@ -117,13 +130,14 @@ Set `FIELDOS_DATA_DIR` to override the default `~/.fieldos` runtime-data directo
 - `hardware/` — CAD, drawings, printable parts and BOM
 - `config/tools/` — tool definitions and command recipes
 - `config/playbooks/` — guided operator workflows
+- `config/knowledge/` — bundled offline knowledge records
 - `assets/` — branding, boot assets and renders
 
 ## Development status
 
-**FIELD//OS V0.4 field-operations development + Hardware REV A prototyping**
+**FIELD//OS V0.5 offline-knowledge/operator-state development + Hardware REV A prototyping**
 
-The remaining major software milestones are offline knowledge indexing/SquidSec integration, favourites/recent tools, themes, exports, real hardware adapters and appliance-style startup. Hardware integration remains dependent on physical RVN-01 bring-up.
+The next major software block is V0.6: theme/low-light profiles, real Pi telemetry, GNSS and Meshtastic adapters, result capture into operation folders, ARM64 bootstrap/installation tooling and appliance-style startup.
 
 ---
 
