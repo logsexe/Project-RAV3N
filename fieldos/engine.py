@@ -14,6 +14,16 @@ from fieldos.operations import _data_root
 from fieldos.vault import Vault
 
 
+class _ClosingConnection(sqlite3.Connection):
+    """Commit/rollback like sqlite's context manager, then close the handle."""
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            return super().__exit__(exc_type, exc, tb)
+        finally:
+            self.close()
+
+
 @dataclass(frozen=True, slots=True)
 class Asset:
     id: str
@@ -63,7 +73,7 @@ class OperationsEngine:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.db_path)
+        db = sqlite3.connect(self.db_path, factory=_ClosingConnection)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
         return db
