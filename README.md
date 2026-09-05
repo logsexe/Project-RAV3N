@@ -43,9 +43,9 @@ The keyboard is intended to sit flush in the lid using the RVN-KB1 removable ret
 
 ## FIELD//OS
 
-FIELD//OS is the operator environment for RAVEN. V0.1.1 is a keyboard-first Textual terminal dashboard with mock RVN-01 telemetry so development can continue before the Raspberry Pi arrives.
+FIELD//OS is the operator environment for RAVEN. V0.1.3 is a keyboard-first Textual terminal dashboard with mock RVN-01 telemetry so development can continue before the Raspberry Pi arrives.
 
-The dashboard now uses a compact standard module list rather than a tile grid. Selecting or highlighting a module shows its description and all tools currently mapped to that category from the local YAML manifest. Global search also queries the local tool index.
+The dashboard uses a compact module list on the left and a module library pane on the right. Highlighting a module shows its indexed tools. The operator can now move into and out of each module library using the right and left arrow keys, then navigate the tools inside with up/down and select one with Enter.
 
 Current primary sections:
 
@@ -83,10 +83,12 @@ python -m fieldos
 
 ### Current controls
 
-- Up / Down — navigate modules
-- Enter — select module
+- Up / Down — navigate the current list
+- Right Arrow — enter the highlighted module library
+- Left Arrow — return to the module list
+- Enter — select the highlighted module or tool
 - `/` — focus global search
-- Esc — return focus to module list / clear search
+- Esc — return focus to the module list / clear search
 - Q — quit
 
 Hardware status currently uses a mock provider. Real Pi, Meshtastic, GNSS, battery and network adapters will replace those mocks as hardware comes online.
