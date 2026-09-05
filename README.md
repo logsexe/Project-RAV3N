@@ -43,13 +43,19 @@ The keyboard is intended to sit flush in the lid using the RVN-KB1 removable ret
 
 ## FIELD//OS
 
-FIELD//OS is the operator environment for RAVEN. V0.1.3 is a keyboard-first Textual terminal dashboard with mock RVN-01 telemetry so development can continue before the Raspberry Pi arrives.
+FIELD//OS V0.2 is now a keyboard-first operator console rather than a static dashboard. It uses a persistent module rail on the left and a context-sensitive operator pane on the right.
 
-The dashboard uses a compact module list on the left and a module library pane on the right. Highlighting a module shows its indexed tools. The operator can now move into and out of each module library using the right and left arrow keys, then navigate the tools inside with up/down and select one with Enter.
+Navigation is hierarchical:
+
+`MODULE -> TOOL LIBRARY -> TOOL DETAIL -> COMMAND RECIPES`
+
+The interface now includes breadcrumbs, active-pane highlighting, detected-tool status, manifest counts, local search across tools and recipe content, per-tool metadata, and curated operator command patterns. Recipe commands are displayed for review rather than auto-executed.
 
 Current primary sections:
 
 `BLUE // RED // NETWORK // FORENSICS // FIELD // COMMS // HARDWARE // RF // UTILITIES`
+
+The core manifest now covers a much broader toolset including Nmap, Wireshark/tshark, tcpdump, Kismet, Zeek, mtr, iperf3, YARA, Sigma, Chainsaw, Hayabusa, osquery, Suricata, Nuclei, Amass, Volatility 3, Binwalk, ExifTool, hashdeep, Meshtastic, gpsd, qFlipper, sigrok, serial/I2C utilities, rtl_433, rtl_power, Gqrx, CyberChef, jq, yq, ripgrep, fzf, OpenSSL, curl, tmux and btop.
 
 ### Run the development build
 
@@ -83,19 +89,18 @@ python -m fieldos
 
 ### Current controls
 
-- Up / Down — navigate the current list
-- Right Arrow — enter the highlighted module library
-- Left Arrow — return to the module list
-- Enter — select the highlighted module or tool
-- `/` — focus global search
-- Esc — return focus to the module list / clear search
+- Up / Down — navigate the current module, tool or recipe list
+- Right Arrow / Enter — move one level deeper
+- Left Arrow — move one level back
+- `/` — global search across tool metadata and recipe text
+- Esc — return to dashboard/module rail
 - Q — quit
 
 Hardware status currently uses a mock provider. Real Pi, Meshtastic, GNSS, battery and network adapters will replace those mocks as hardware comes online.
 
-### Current tool index
+### Tool manifest
 
-The initial manifest lives at `config/tools/core.yaml` and currently contains tools such as Nmap, Wireshark/tshark, tcpdump, Kismet, CyberChef, YARA, Chainsaw, Hayabusa, Volatility 3, Binwalk, Nuclei, osquery, Meshtastic, gpsd and rtl_433.
+The core manifest lives at `config/tools/core.yaml`. Manifest records can define category, subcategory, description, executable, offline capability, privilege requirements, authorised-use flags and operator recipes.
 
 Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc RedTeam-Tools remain knowledge sources rather than instructions to install every tool they reference.
 
@@ -109,9 +114,9 @@ Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc 
 
 ## Development status
 
-**Phase 0 — Architecture & prototyping**
+**FIELD//OS V0.2 operator-console development + Hardware REV A prototyping**
 
-Current priorities are FIELD//OS V0.1.x, RVN-01 physical measurements, RVN-KB1 CAD, component layout and hardware BOM. Hardware-dependent integrations use mock adapters until the Raspberry Pi and peripherals are available.
+Current priorities are deeper tool workflows, sessions, favourites/recent tools, offline knowledge indexing, real hardware adapters and RVN-01 physical integration.
 
 ---
 
