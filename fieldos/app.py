@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Grid, Horizontal, Vertical
-from textual.widgets import Button, Footer, Header, Input, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Footer, Header, Input, Label, ListItem, ListView, Static
 
 from fieldos.hardware.mock import MockTelemetryProvider
+from fieldos.tools import ToolIndex
 
 
 CATEGORIES = [
@@ -22,7 +23,7 @@ CATEGORIES = [
 
 
 class FieldOSApp(App[None]):
-    """FIELD//OS V0.1 development dashboard."""
+    """FIELD//OS V0.1.1 development dashboard."""
 
     TITLE = "RAVEN // RVN-01 // FIELD//OS"
     SUB_TITLE = "FIELD OPERATIONS TERMINAL // DEVELOPMENT UNIT"
@@ -68,25 +69,58 @@ class FieldOSApp(App[None]):
         border: tall #b5c0c5;
     }
 
-    #category-grid {
-        grid-size: 3 3;
-        grid-gutter: 1 1;
+    #workspace {
         height: 1fr;
     }
 
-    .category {
-        height: 100%;
-        min-height: 4;
-        background: #10161a;
-        color: #d5dbd8;
-        border: solid #343c41;
+    #category-list {
+        width: 30;
+        min-width: 24;
+        height: 1fr;
+        background: #0a0f12;
+        border-right: solid #343c41;
+        padding-right: 1;
+    }
+
+    #category-list > ListItem {
+        height: 3;
+        padding: 0 1;
+        color: #9ca7ac;
+        background: #0a0f12;
+    }
+
+    #category-list > ListItem.--highlight {
+        color: #ffffff;
+        background: #20292e;
+        text-style: bold;
+        border-left: heavy #b7c2c7;
+    }
+
+    .category-title {
         text-style: bold;
     }
 
-    .category:focus {
-        background: #20292e;
-        color: #ffffff;
-        border: heavy #b7c2c7;
+    #content {
+        width: 1fr;
+        height: 1fr;
+        padding: 0 2;
+    }
+
+    #content-title {
+        height: 2;
+        color: #f0f2ef;
+        text-style: bold;
+    }
+
+    #content-description {
+        height: 2;
+        color: #7f8b91;
+    }
+
+    #content-body {
+        height: 1fr;
+        padding-top: 1;
+        color: #c3cbce;
     }
 
     #telemetry {
@@ -117,15 +151,12 @@ class FieldOSApp(App[None]):
         Binding("q", "quit", "Quit"),
         Binding("/", "search", "Search"),
         Binding("escape", "dashboard", "Dashboard"),
-        Binding("left", "move_focus(-1)", "Left", show=False),
-        Binding("right", "move_focus(1)", "Right", show=False),
-        Binding("up", "move_focus(-3)", "Up", show=False),
-        Binding("down", "move_focus(3)", "Down", show=False),
     ]
 
     def __init__(self) -> None:
         super().__init__()
         self.telemetry_provider = MockTelemetryProvider()
+        self.tools = ToolIndex.load_default()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -134,22 +165,31 @@ class FieldOSApp(App[None]):
             with Vertical(id="identity"):
                 yield Static("RAVEN // RVN-01", id="platform")
                 yield Static(
-                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.1",
+                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.1.1",
                     id="designation",
                 )
 
             yield Input(
-                placeholder="SEARCH // tools, commands, sessions, knowledge",
+                placeholder="SEARCH // tools, categories, commands, knowledge",
                 id="search",
             )
 
-            with Grid(id="category-grid"):
-                for name, description in CATEGORIES:
-                    yield Button(
-                        f"{name}\n{description}",
-                        id=f"category-{name.lower()}",
-                        classes="category",
-                    )
+            with Horizontal(id="workspace"):
+                yield ListView(
+                    *[
+                        ListItem(
+                            Label(f"{name}\n{description}", classes="category-title"),
+                            id=f"category-{name.lower()}",
+                        )
+                        for name, description in CATEGORIES
+                    ],
+                    id="category-list",
+                )
+
+                with Vertical(id="content"):
+                    yield Static("BLUE // MODULE", id="content-title")
+                    yield Static("Defensive security / hunting", id="content-description")
+                    yield Static("", id="content-body")
 
             yield Static("SYSTEM TELEMETRY INITIALISING", id="telemetry")
             yield Static("RECON // ANALYSE // OPERATE", id="mission")
@@ -159,9 +199,10 @@ class FieldOSApp(App[None]):
     def on_mount(self) -> None:
         self.set_interval(1.5, self.refresh_telemetry)
         self.refresh_telemetry()
-        buttons = list(self.query(".category"))
-        if buttons:
-            buttons[0].focus()
+        category_list = self.query_one("#category-list", ListView)
+        category_list.index = 0
+        category_list.focus()
+        self.render_category("BLUE")
 
     def refresh_telemetry(self) -> None:
         telemetry = self.telemetry_provider.read()
@@ -181,42 +222,80 @@ class FieldOSApp(App[None]):
     def action_dashboard(self) -> None:
         search = self.query_one("#search", Input)
         search.value = ""
-        buttons = list(self.query(".category"))
-        if buttons:
-            buttons[0].focus()
+        category_list = self.query_one("#category-list", ListView)
+        category_list.focus()
+        index = category_list.index or 0
+        self.render_category(CATEGORIES[index][0])
 
-    def action_move_focus(self, delta: int) -> None:
-        buttons = list(self.query(".category"))
-        if not buttons:
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.item is None or not event.item.id:
             return
+        category = event.item.id.removeprefix("category-").upper()
+        self.render_category(category)
 
-        focused = self.focused
-        try:
-            index = buttons.index(focused)
-        except ValueError:
-            buttons[0].focus()
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        if event.item is None or not event.item.id:
             return
+        category = event.item.id.removeprefix("category-").upper()
+        self.render_category(category)
+        self.notify(f"{category} MODULE // READY", title="RAVEN", timeout=1.5)
 
-        target = max(0, min(len(buttons) - 1, index + delta))
-        buttons[target].focus()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        category = event.button.id.removeprefix("category-").upper()
-        self.notify(
-            f"{category} MODULE // interface scaffold ready",
-            title="RAVEN",
-            timeout=2.0,
+    def render_category(self, category: str) -> None:
+        description = next(
+            (desc for name, desc in CATEGORIES if name == category),
+            "FIELD//OS module",
         )
+        tools = self.tools.for_category(category.lower())
+
+        self.query_one("#content-title", Static).update(f"{category} // MODULE")
+        self.query_one("#content-description", Static).update(description)
+
+        if not tools:
+            body = (
+                "STATUS      READY\n"
+                "TOOLS       NONE INDEXED YET\n\n"
+                "This module is online, but no tool manifests currently map to it."
+            )
+        else:
+            lines = [
+                f"STATUS      READY",
+                f"TOOLS       {len(tools)} INDEXED",
+                "",
+            ]
+            for tool in tools:
+                subcategory = f" // {tool.subcategory}" if tool.subcategory else ""
+                lines.append(
+                    f"> {tool.name:<24} [{tool.priority.upper()}]{subcategory}"
+                )
+            body = "\n".join(lines)
+
+        self.query_one("#content-body", Static).update(body)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         query = event.value.strip()
         if not query:
+            self.action_dashboard()
             return
-        self.notify(
-            f'SEARCH // "{query}" // indexer coming next',
-            title="FIELD//OS",
-            timeout=3.0,
+
+        matches = self.tools.search(query)
+        self.query_one("#content-title", Static).update(f'SEARCH // "{query.upper()}"')
+        self.query_one("#content-description", Static).update(
+            f"{len(matches)} result(s) in local FIELD//OS manifest index"
         )
+
+        if not matches:
+            body = "NO MATCHES\n\nTry a tool name, category, subcategory or priority."
+        else:
+            lines = []
+            for tool in matches[:20]:
+                subcategory = f" // {tool.subcategory}" if tool.subcategory else ""
+                lines.append(
+                    f"> {tool.name:<24} {tool.category.upper()}{subcategory} "
+                    f"[{tool.priority.upper()}]"
+                )
+            body = "\n".join(lines)
+
+        self.query_one("#content-body", Static).update(body)
 
 
 if __name__ == "__main__":
