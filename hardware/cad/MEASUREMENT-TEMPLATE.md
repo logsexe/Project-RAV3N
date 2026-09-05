@@ -8,8 +8,8 @@ Record dimensions in millimetres where possible. Measure the physical component 
 
 User-supplied provisional measurements:
 
-- Overall width / long side: **10.1** — unit requires confirmation; likely **inches**, which would be approximately **256.5 mm**
-- Overall front-to-back depth: **3.8** — unit requires confirmation; likely **inches**, which would be approximately **96.5 mm**
+- Overall left-to-right width: **310 mm**
+- Overall top-to-bottom depth: **100 mm**
 - Body height excluding keycaps: **20–25 mm**, gradually increasing toward the rear
 - Keycap height above body: approximately **12 mm**
 - Approximate maximum total height: **32–37 mm**, depending on where body height was measured
@@ -20,21 +20,20 @@ User-supplied provisional measurements:
 - Corner radius: TBD
 - Rubber feet positions/heights: TBD
 
-### Important dimensional sanity check
-
-A 65% keyboard cannot realistically be 101 × 38 mm. The reported `10.1` and `3.8` figures are mechanically plausible if they were read in **inches** rather than centimetres:
-
-- 10.1 in = **256.54 mm**
-- 3.8 in = **96.52 mm**
-
-These converted dimensions are therefore useful for rough layout only until the units are confirmed and the keyboard is measured with calipers.
+These dimensions describe the keyboard only. The keyboard has **not yet been positioned and dimensioned relative to the case lid**, so no X/Y offsets or free space above/below/left/right should be inferred yet.
 
 ## Case lid
 
-User-supplied provisional measurements:
+Case-position measurements still required:
 
-- Usable lid width/depth: approximately **240 mm** — clarify whether this means 240 mm in one direction or approximately 240 × 240 mm usable area
-- Lid floor to closing/sealing obstruction: approximately **30 mm**
+- Usable lid left-to-right width at keyboard plane: TBD
+- Usable lid hinge-to-front depth at keyboard plane: TBD
+- Keyboard X offset from left edge once positioned: TBD
+- Keyboard Y offset from top/hinge edge once positioned: TBD
+- Free space above keyboard: TBD
+- Free space below keyboard: TBD
+- Free space left/right of keyboard: TBD
+- Lid floor to closing/sealing obstruction: approximately **30 mm** (provisional)
 - Lid taper from bottom to top: TBD
 - Corner radii: TBD
 - Hinge-side obstruction/keep-out: TBD
@@ -51,11 +50,12 @@ Because the keyboard's total height may exceed the nominal 30 mm lid clearance, 
 
 ## Next measurements to prioritise
 
-1. Confirm whether `10.1 × 3.8` is inches.
-2. Measure the case lid usable **left-to-right width** separately from **hinge-to-front depth**.
-3. Measure keyboard front-edge and rear-edge body heights separately.
-4. Measure the keyboard USB connector position and cable protrusion.
-5. Check closed-case clearance with the keyboard placed in its intended orientation using a small amount of removable putty/foam as a compression gauge if required.
+1. Place the keyboard in its intended final position in the lid.
+2. Measure free space from keyboard to case edge on the **left, right, top/hinge side and bottom/front side**.
+3. Measure the case lid usable left-to-right width and hinge-to-front depth at the keyboard plane.
+4. Measure keyboard front-edge and rear-edge body heights separately.
+5. Measure the keyboard USB connector position and cable protrusion.
+6. Check closed-case clearance with the keyboard in its intended orientation using a small amount of removable putty/foam as a compression gauge if required.
 
 ## CAD confidence
 
