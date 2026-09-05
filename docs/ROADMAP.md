@@ -10,21 +10,26 @@
 - [ ] Measure usable lid geometry precisely
 - [ ] Verify 7-inch display dimensions and connector locations
 - [ ] Build component CAD reference library
-- [ ] Design keyboard flush-mount cradle/bezel
+- [x] Define RVN-KB1 keyboard retention concept
+- [ ] Produce RVN-KB1 printable CAD
 - [ ] Establish base-panel coordinate system
 
 ## FIELD//OS V0.1 — Operator shell prototype
 
-- [ ] Python package scaffold
-- [ ] Main dashboard
-- [ ] Keyboard navigation
-- [ ] Categories
-- [ ] Tool manifest loader
-- [ ] Unified search
+- [x] Python package scaffold
+- [x] Main dashboard
+- [x] Keyboard navigation
+- [x] Standard list-based module navigation
+- [x] Categories
+- [x] Tool manifest loader
+- [x] Local manifest search
+- [ ] Search knowledge sources and commands
 - [ ] SquidSec adapter/indexer
 - [ ] Session model
-- [ ] Mock telemetry adapter
+- [x] Mock telemetry adapter
 - [ ] Theme configuration
+- [ ] Tool detail / launch views
+- [ ] Installed-tool detection
 
 ## Hardware REV A
 
