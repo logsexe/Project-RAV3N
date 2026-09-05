@@ -1,0 +1,94 @@
+schema_version: 1
+
+sources:
+  - id: squidsec
+    name: SquidSec CyberDeck
+    type: knowledge
+    source: github.com/SquidSec/CyberDeck
+    priority: core
+  - id: blueteam-tools
+    name: A-poc BlueTeam-Tools
+    type: knowledge
+    source: github.com/A-poc/BlueTeam-Tools
+    priority: core
+  - id: redteam-tools
+    name: A-poc RedTeam-Tools
+    type: knowledge
+    source: github.com/A-poc/RedTeam-Tools
+    priority: core
+
+tools:
+  - id: nmap
+    name: Nmap
+    category: network
+    priority: core
+    offline: true
+  - id: wireshark
+    name: Wireshark / tshark
+    category: network
+    priority: core
+    offline: true
+  - id: tcpdump
+    name: tcpdump
+    category: network
+    priority: core
+    offline: true
+  - id: kismet
+    name: Kismet
+    category: network
+    subcategory: wireless
+    priority: core
+  - id: cyberchef
+    name: CyberChef
+    category: utilities
+    priority: core
+    offline: true
+  - id: yara
+    name: YARA
+    category: blue
+    subcategory: dfir
+    priority: core
+    offline: true
+  - id: chainsaw
+    name: Chainsaw
+    category: blue
+    subcategory: windows-event-logs
+    priority: recommended
+  - id: hayabusa
+    name: Hayabusa
+    category: blue
+    subcategory: windows-event-logs
+    priority: recommended
+  - id: volatility3
+    name: Volatility 3
+    category: forensics
+    subcategory: memory
+    priority: recommended
+  - id: binwalk
+    name: Binwalk
+    category: forensics
+    subcategory: firmware
+    priority: recommended
+  - id: nuclei
+    name: Nuclei
+    category: red
+    priority: optional
+    authorised_use_only: true
+  - id: osquery
+    name: osquery
+    category: blue
+    subcategory: host-analysis
+    priority: recommended
+  - id: meshtastic
+    name: Meshtastic CLI/API
+    category: comms
+    priority: core
+  - id: gpsd
+    name: gpsd
+    category: field
+    subcategory: navigation
+    priority: core
+  - id: rtl433
+    name: rtl_433
+    category: rf
+    priority: planned
