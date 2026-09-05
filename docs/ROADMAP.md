@@ -6,11 +6,11 @@
 - [x] Define FIELD//OS concept
 - [x] Select rugged case
 - [x] Confirm keyboard physically fits case
+- [x] Define RVN-KB1 keyboard retention concept
 - [ ] Measure keyboard precisely
 - [ ] Measure usable lid geometry precisely
 - [ ] Verify 7-inch display dimensions and connector locations
 - [ ] Build component CAD reference library
-- [x] Define RVN-KB1 keyboard retention concept
 - [ ] Produce RVN-KB1 printable CAD
 - [ ] Establish base-panel coordinate system
 
@@ -47,55 +47,60 @@
 
 - [x] Persistent operation/session model
 - [x] Per-operation timestamped notes
-- [x] Session directory structure for notes/scans/captures/evidence/exports
-- [x] Active operation shown in compact status bar
+- [x] Session directory structure
+- [x] Active operation status
 - [x] Operator playbook engine
 - [x] Network Triage / Windows IR / Evidence Intake playbooks
 - [x] Wireless Survey / RF Observation playbooks
-- [x] Playbook step command staging into terminal
+- [x] Playbook command staging
 
 ## FIELD//OS V0.5 — Offline knowledge and operator state
 
 - [x] Persistent favourites
 - [x] Persistent recent tools
-- [x] Combined tool + knowledge global search
+- [x] Combined tool + knowledge search
 - [x] Bundled offline knowledge vault
 - [x] Local documentation/repository indexer
-- [x] SquidSec / BlueTeam-Tools / RedTeam-Tools local adapter via FIELDOS_KNOWLEDGE_PATHS
-- [x] Knowledge entries can stage example commands into terminal
+- [x] SquidSec / BlueTeam-Tools / RedTeam-Tools local knowledge adapter
+- [x] Knowledge command staging
 - [x] Operation ZIP export workflow
-- [x] Compact Favourites / Recent / Knowledge views
 
-## Hardware REV A
+## FIELD//OS V1.0 — RVN-01 software baseline
+
+- [x] Real best-effort system telemetry
+- [x] Network-interface discovery
+- [x] GNSS/gpsd readiness adapter
+- [x] Meshtastic readiness adapter
+- [x] CPU temperature / storage / battery telemetry
+- [x] Persistent terminal `cd` working directory
+- [x] Running-command interrupt control
+- [x] Automatic command transcript capture per operation
+- [x] `commands/` operation artefact directory
+- [x] Phosphor / Amber / Ice / Red / Monochrome themes
+- [x] Host compatibility health-check command
+- [x] ARM64 / Debian bootstrap installer
+- [x] tty1 appliance-style systemd service
+- [x] Linux + Windows CI
+- [x] V1 software documentation
+
+## Hardware REV A — physical commissioning
 
 - [ ] Raspberry Pi 5 bench bring-up
 - [ ] Active Cooler verification
-- [ ] microSD OS image
-- [ ] M.2 HAT+ / NVMe planning
-- [ ] Display integration
-- [ ] Keyboard integration
-- [ ] USB distribution
-- [ ] Power architecture
-- [ ] Cooling / airflow design
-- [ ] Meshtastic module selection
-- [ ] GNSS selection
-- [ ] Dedicated Wi-Fi interface selection
-- [ ] RTL-SDR planning
+- [ ] microSD OS image and burn-in
+- [ ] M.2 HAT+ / NVMe validation
+- [ ] Display integration and 800×480 validation
+- [ ] Keyboard integration / RVN-KB1 prototype
+- [ ] USB distribution validation
+- [ ] Power architecture and battery selection
+- [ ] Cooling / airflow validation
+- [ ] Meshtastic module selection and AU-region validation
+- [ ] GNSS module selection and fix testing
+- [ ] Dedicated Wi-Fi interface selection and ARM64 driver testing
+- [ ] RTL-SDR integration and noise testing
+- [ ] Closed-case thermal test
+- [ ] Field endurance test
 
-## FIELD//OS V0.6+
+## V1 acceptance target
 
-- [ ] Theme configuration / low-light profiles
-- [ ] Meshtastic adapter
-- [ ] GNSS/gpsd adapter
-- [ ] Real system telemetry
-- [ ] Network interface manager
-- [ ] Event timeline beyond notes
-- [ ] Tool result normalisation into operation folders
-- [ ] Command output capture to scans/captures/evidence
-- [ ] Appliance-style startup profile
-- [ ] ARM64 installation/bootstrap tooling
-- [ ] Automated compatibility checks for Pi tool manifests
-
-## V1 target
-
-RAVEN should boot into a cohesive FIELD//OS environment with reliable keyboard navigation, offline knowledge, persistent operations, notes, playbooks, core cyber/network/DFIR tooling, hardware status, Meshtastic and GNSS integration, while retaining access to the underlying Linux environment for advanced work.
+FIELD//OS V1 software is feature-complete. RAVEN V1 is complete when the physical RVN-01 hardware has been commissioned against the software baseline: the unit boots into FIELD//OS, the 7-inch display and keyboard are reliable, power and cooling are validated, and the installed GNSS/Meshtastic/network/RF modules report correctly through the hardware adapters.
