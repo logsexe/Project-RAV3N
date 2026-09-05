@@ -23,7 +23,7 @@ CATEGORIES = [
 
 
 class FieldOSApp(App[None]):
-    """FIELD//OS V0.1.1 development dashboard."""
+    """FIELD//OS V0.1.2 development dashboard."""
 
     TITLE = "RAVEN // RVN-01 // FIELD//OS"
     SUB_TITLE = "FIELD OPERATIONS TERMINAL // DEVELOPMENT UNIT"
@@ -85,19 +85,26 @@ class FieldOSApp(App[None]):
     #category-list > ListItem {
         height: 3;
         padding: 0 1;
-        color: #9ca7ac;
+        color: #879198;
         background: #0a0f12;
+        border-left: solid #151c20;
     }
 
-    #category-list > ListItem.--highlight {
+    #category-list > ListItem.active {
         color: #ffffff;
-        background: #20292e;
+        background: #283238;
         text-style: bold;
-        border-left: heavy #b7c2c7;
+        border-left: heavy #d7ddd9;
+    }
+
+    #category-list:focus > ListItem.active {
+        color: #ffffff;
+        background: #344149;
+        border-left: heavy #ffffff;
     }
 
     .category-title {
-        text-style: bold;
+        width: 1fr;
     }
 
     #content {
@@ -165,7 +172,7 @@ class FieldOSApp(App[None]):
             with Vertical(id="identity"):
                 yield Static("RAVEN // RVN-01", id="platform")
                 yield Static(
-                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.1.1",
+                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.1.2",
                     id="designation",
                 )
 
@@ -202,6 +209,7 @@ class FieldOSApp(App[None]):
         category_list = self.query_one("#category-list", ListView)
         category_list.index = 0
         category_list.focus()
+        self.set_active_category(0)
         self.render_category("BLUE")
 
     def refresh_telemetry(self) -> None:
@@ -225,17 +233,29 @@ class FieldOSApp(App[None]):
         category_list = self.query_one("#category-list", ListView)
         category_list.focus()
         index = category_list.index or 0
+        self.set_active_category(index)
         self.render_category(CATEGORIES[index][0])
+
+    def set_active_category(self, index: int) -> None:
+        items = list(self.query("#category-list > ListItem"))
+        for item_index, item in enumerate(items):
+            item.set_class(item_index == index, "active")
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.item is None or not event.item.id:
             return
+        category_list = self.query_one("#category-list", ListView)
+        index = category_list.index or 0
+        self.set_active_category(index)
         category = event.item.id.removeprefix("category-").upper()
         self.render_category(category)
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.item is None or not event.item.id:
             return
+        category_list = self.query_one("#category-list", ListView)
+        index = category_list.index or 0
+        self.set_active_category(index)
         category = event.item.id.removeprefix("category-").upper()
         self.render_category(category)
         self.notify(f"{category} MODULE // READY", title="RAVEN", timeout=1.5)
@@ -258,7 +278,7 @@ class FieldOSApp(App[None]):
             )
         else:
             lines = [
-                f"STATUS      READY",
+                "STATUS      READY",
                 f"TOOLS       {len(tools)} INDEXED",
                 "",
             ]
