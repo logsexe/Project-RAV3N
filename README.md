@@ -43,11 +43,51 @@ The keyboard is intended to sit flush in a custom 3D-printed lid cradle/bezel. F
 
 ## FIELD//OS
 
-FIELD//OS is the operator environment for RAVEN. V0.1 is being designed as a keyboard-first terminal dashboard inspired by the fast navigation and searchable command-library experience of SquidSec, while expanding into sessions, tool adapters, hardware telemetry and offline knowledge.
+FIELD//OS is the operator environment for RAVEN. V0.1 is now running as a keyboard-first Textual terminal dashboard with mock RVN-01 telemetry so development can continue before the Raspberry Pi arrives.
 
-Planned primary sections:
+Current primary sections:
 
 `BLUE // RED // NETWORK // FORENSICS // FIELD // COMMS // HARDWARE // RF // UTILITIES`
+
+### Run the V0.1 development build
+
+Requires Python 3.11+.
+
+```bash
+python -m venv .venv
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+fieldos
+```
+
+Linux / macOS:
+
+```bash
+source .venv/bin/activate
+pip install -e .
+fieldos
+```
+
+You can also run it directly with:
+
+```bash
+python -m fieldos
+```
+
+### Current controls
+
+- Arrow keys — move between modules
+- `/` — focus global search
+- `Enter` — select a module
+- `Esc` — return to dashboard
+- `Q` — quit
+
+Hardware status currently uses a mock provider. Real Pi, Meshtastic, GNSS, battery and network adapters will replace those mocks as hardware comes online.
 
 ## Repository layout
 
@@ -61,7 +101,7 @@ Planned primary sections:
 
 **Phase 0 — Architecture & prototyping**
 
-Current priorities are FIELD//OS V0.1, RVN-01 physical measurements, keyboard cradle CAD, component layout and hardware BOM. Hardware-dependent integrations will use mock adapters until the Raspberry Pi and peripherals are available.
+Current priorities are FIELD//OS V0.1, RVN-01 physical measurements, keyboard cradle CAD, component layout and hardware BOM. Hardware-dependent integrations use mock adapters until the Raspberry Pi and peripherals are available.
 
 ---
 
