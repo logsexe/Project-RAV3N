@@ -17,57 +17,65 @@ Project RAV3N is a rugged, modular Raspberry Pi 5 field-computing platform combi
 | Hardware | REV A |
 | Status | DEVELOPMENT |
 
-## RVN-01 capability groups
+## FIELD//OS V0.4
 
-- **CYBER** — Blue Team, Red Team, network analysis and authorised security testing
-- **DFIR** — event logs, memory, file and firmware analysis
-- **COMMS** — Meshtastic / LoRa communications
-- **NAV** — GNSS, maps, waypoints and tracks
-- **RF** — receive-side SDR and spectrum tooling
-- **LAB** — hardware interfaces, serial, USB and electronics diagnostics
-- **FIELD** — sessions, notes, evidence and operational workflows
+FIELD//OS is now designed around the physical 7-inch 800×480 RVN-01 display rather than a desktop-style dashboard. The interface uses progressive full-screen views so the current task gets the available display area.
 
-## Current hardware baseline
+Primary navigation:
 
-- Tactix Tough Case — Medium
-- 65% wired mechanical keyboard — confirmed physical fit
-- Raspberry Pi 5 8 GB — awaiting arrival
-- Raspberry Pi Active Cooler
-- Raspberry Pi M.2 HAT+
-- Freenove 7-inch touchscreen
-- Anker 4-port USB 3.0 hub
-- Patriot 256 GB microSDXC
-- Flipper Zero — removable field instrument
+`HOME -> MODULE -> TOOL -> RECIPE -> TERMINAL`
 
-The keyboard is intended to sit flush in the lid using the RVN-KB1 removable retention system. Final printable CAD dimensions will be based on physical measurements and test fits rather than nominal product dimensions.
+FIELD//OS V0.4 adds a persistent field-operations layer on top of the V0.3 appliance interface:
 
-## FIELD//OS
+- Persistent operation/session records stored under `~/.fieldos/sessions/` by default
+- Automatic `notes/`, `scans/`, `captures/`, `evidence/` and `exports/` directories per operation
+- Timestamped operation notes
+- Active operation identity in the compact top status bar
+- Full-screen live local terminal with independent terminal sessions and command history
+- Tool recipes staged into the terminal for review/editing before execution
+- Guided operator playbooks for Network Triage, Windows IR, Evidence Intake, Wireless Survey and RF Observation
+- Playbook steps can stage example commands directly into the terminal
+- Global tool/recipe search, installed-tool detection and compact system status
 
-FIELD//OS V0.2 is now a keyboard-first operator console rather than a static dashboard. It uses a persistent module rail on the left and a context-sensitive operator pane on the right.
-
-Navigation is hierarchical:
-
-`MODULE -> TOOL LIBRARY -> TOOL DETAIL -> COMMAND RECIPES`
-
-The interface now includes breadcrumbs, active-pane highlighting, detected-tool status, manifest counts, local search across tools and recipe content, per-tool metadata, and curated operator command patterns. Recipe commands are displayed for review rather than auto-executed.
-
-Current primary sections:
+Current primary libraries:
 
 `BLUE // RED // NETWORK // FORENSICS // FIELD // COMMS // HARDWARE // RF // UTILITIES`
 
-The core manifest now covers a much broader toolset including Nmap, Wireshark/tshark, tcpdump, Kismet, Zeek, mtr, iperf3, YARA, Sigma, Chainsaw, Hayabusa, osquery, Suricata, Nuclei, Amass, Volatility 3, Binwalk, ExifTool, hashdeep, Meshtastic, gpsd, qFlipper, sigrok, serial/I2C utilities, rtl_433, rtl_power, Gqrx, CyberChef, jq, yq, ripgrep, fzf, OpenSSL, curl, tmux and btop.
+The tool manifest includes Nmap, Wireshark/tshark, tcpdump, Kismet, Zeek, mtr, iperf3, YARA, Sigma, Chainsaw, Hayabusa, osquery, Suricata, Nuclei, Amass, Volatility 3, Binwalk, ExifTool, hashdeep, Meshtastic, gpsd, qFlipper, sigrok, rtl_433, rtl_power, Gqrx, CyberChef, jq, yq, ripgrep, fzf, OpenSSL, curl, tmux, btop and more.
 
-### Run the development build
+Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc RedTeam-Tools are treated as knowledge sources rather than instructions to install every referenced tool.
+
+## Controls
+
+- `Up / Down` — navigate current list
+- `Right / Enter` — open/select/stage
+- `Left / Esc` — back
+- `/` — global search
+- `F1` — help
+- `F2` — terminal
+- `F3` — operations/sessions
+- `F4` — system status
+- `F5` — operation notes
+- `F9` — playbooks
+
+Inside the terminal:
+
+- `Tab` — next terminal
+- `Shift+Tab` — previous terminal
+- `F6` — new terminal
+- `F7` — close terminal
+- `F8` — clear terminal
+
+Inside Operations, press `N` to create a new operation. Inside Notes, press `N` to add a timestamped note.
+
+## Run the development build
 
 Requires Python 3.11+.
-
-```bash
-python -m venv .venv
-```
 
 Windows PowerShell:
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
 fieldos
@@ -76,47 +84,46 @@ fieldos
 Linux / macOS:
 
 ```bash
+python -m venv .venv
 source .venv/bin/activate
 pip install -e .
 fieldos
 ```
 
-You can also run it directly with:
+You can also run it with:
 
 ```bash
 python -m fieldos
 ```
 
-### Current controls
+Set `FIELDOS_DATA_DIR` to override the default `~/.fieldos` runtime-data directory.
 
-- Up / Down — navigate the current module, tool or recipe list
-- Right Arrow / Enter — move one level deeper
-- Left Arrow — move one level back
-- `/` — global search across tool metadata and recipe text
-- Esc — return to dashboard/module rail
-- Q — quit
+## Current hardware baseline
 
-Hardware status currently uses a mock provider. Real Pi, Meshtastic, GNSS, battery and network adapters will replace those mocks as hardware comes online.
-
-### Tool manifest
-
-The core manifest lives at `config/tools/core.yaml`. Manifest records can define category, subcategory, description, executable, offline capability, privilege requirements, authorised-use flags and operator recipes.
-
-Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc RedTeam-Tools remain knowledge sources rather than instructions to install every tool they reference.
+- Tactix Tough Case — Medium
+- 65% wired mechanical keyboard — confirmed physical fit
+- Raspberry Pi 5 8 GB
+- Raspberry Pi Active Cooler
+- Raspberry Pi M.2 HAT+
+- Freenove 7-inch touchscreen
+- Anker 4-port USB 3.0 hub
+- Patriot 256 GB microSDXC
+- Flipper Zero — removable field instrument
 
 ## Repository layout
 
 - `docs/` — architecture, specifications, naming and roadmap
 - `fieldos/` — FIELD//OS source
 - `hardware/` — CAD, drawings, printable parts and BOM
-- `config/` — themes and tool definitions
+- `config/tools/` — tool definitions and command recipes
+- `config/playbooks/` — guided operator workflows
 - `assets/` — branding, boot assets and renders
 
 ## Development status
 
-**FIELD//OS V0.2 operator-console development + Hardware REV A prototyping**
+**FIELD//OS V0.4 field-operations development + Hardware REV A prototyping**
 
-Current priorities are deeper tool workflows, sessions, favourites/recent tools, offline knowledge indexing, real hardware adapters and RVN-01 physical integration.
+The remaining major software milestones are offline knowledge indexing/SquidSec integration, favourites/recent tools, themes, exports, real hardware adapters and appliance-style startup. Hardware integration remains dependent on physical RVN-01 bring-up.
 
 ---
 
