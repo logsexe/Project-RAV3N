@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 
 sources:
   - id: squidsec
@@ -21,74 +21,528 @@ tools:
   - id: nmap
     name: Nmap
     category: network
+    subcategory: discovery
     priority: core
+    description: Network discovery, port scanning and service identification.
+    command: nmap
     offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Host discovery
+        description: Discover responding hosts on an authorised subnet.
+        command: "nmap -sn 192.168.1.0/24"
+      - name: Service scan
+        description: Identify services and versions on a known host.
+        command: "nmap -sV 192.168.1.10"
+      - name: Common ports
+        description: Scan the most common TCP ports.
+        command: "nmap --top-ports 100 192.168.1.10"
+
   - id: wireshark
     name: Wireshark / tshark
     category: network
+    subcategory: packets
     priority: core
+    description: Packet capture and protocol analysis.
+    command: tshark
     offline: true
+    recipes:
+      - name: List interfaces
+        command: "tshark -D"
+      - name: Read capture
+        command: "tshark -r capture.pcapng"
+      - name: DNS display filter
+        command: "tshark -r capture.pcapng -Y dns"
+
   - id: tcpdump
     name: tcpdump
     category: network
+    subcategory: packets
     priority: core
+    description: Lightweight command-line packet capture.
+    command: tcpdump
     offline: true
+    requires_root: true
+    recipes:
+      - name: List interfaces
+        command: "tcpdump -D"
+      - name: Capture to file
+        command: "tcpdump -i eth0 -w capture.pcap"
+      - name: Read capture
+        command: "tcpdump -nn -r capture.pcap"
+
   - id: kismet
     name: Kismet
     category: network
     subcategory: wireless
-    priority: core
-  - id: cyberchef
-    name: CyberChef
-    category: utilities
-    priority: core
+    priority: recommended
+    description: Wireless discovery and passive monitoring platform.
+    command: kismet
+    authorised_use_only: true
+
+  - id: zeek
+    name: Zeek
+    category: network
+    subcategory: network-security-monitoring
+    priority: recommended
+    description: Network security monitoring and protocol metadata extraction.
+    command: zeek
     offline: true
+    recipes:
+      - name: Analyse capture
+        command: "zeek -r capture.pcap"
+
+  - id: mtr
+    name: mtr
+    category: network
+    subcategory: diagnostics
+    priority: recommended
+    description: Combined traceroute and latency diagnostic utility.
+    command: mtr
+    recipes:
+      - name: Report mode
+        command: "mtr -rw example.com"
+
+  - id: iperf3
+    name: iperf3
+    category: network
+    subcategory: performance
+    priority: recommended
+    description: Network throughput measurement between controlled endpoints.
+    command: iperf3
+    recipes:
+      - name: Server
+        command: "iperf3 -s"
+      - name: Client
+        command: "iperf3 -c 192.168.1.10"
+
   - id: yara
     name: YARA
     category: blue
-    subcategory: dfir
+    subcategory: detection
     priority: core
+    description: Pattern matching for malware and artefact detection.
+    command: yara
     offline: true
+    recipes:
+      - name: Scan file
+        command: "yara rules.yar suspicious.bin"
+      - name: Recursive scan
+        command: "yara -r rules.yar ./evidence"
+
+  - id: sigma
+    name: Sigma CLI
+    category: blue
+    subcategory: detection-engineering
+    priority: core
+    description: Portable detection rules and backend conversion.
+    command: sigma
+    offline: true
+
   - id: chainsaw
     name: Chainsaw
     category: blue
     subcategory: windows-event-logs
-    priority: recommended
+    priority: core
+    description: Fast Windows EVTX hunting with Sigma and built-in detections.
+    command: chainsaw
+    offline: true
+    recipes:
+      - name: Hunt EVTX directory
+        command: "chainsaw hunt ./evtx --mapping mappings/sigma-event-logs-all.yml --sigma ./sigma"
+
   - id: hayabusa
     name: Hayabusa
     category: blue
     subcategory: windows-event-logs
-    priority: recommended
-  - id: volatility3
-    name: Volatility 3
-    category: forensics
-    subcategory: memory
-    priority: recommended
-  - id: binwalk
-    name: Binwalk
-    category: forensics
-    subcategory: firmware
-    priority: recommended
-  - id: nuclei
-    name: Nuclei
-    category: red
-    priority: optional
-    authorised_use_only: true
+    priority: core
+    description: Windows event log threat hunting and timeline generation.
+    command: hayabusa
+    offline: true
+    recipes:
+      - name: CSV timeline
+        command: "hayabusa csv-timeline -d ./evtx -o timeline.csv"
+
   - id: osquery
     name: osquery
     category: blue
     subcategory: host-analysis
+    priority: core
+    description: Query operating-system state using SQL.
+    command: osqueryi
+    offline: true
+    recipes:
+      - name: Interactive shell
+        command: "osqueryi"
+      - name: Processes
+        command: "osqueryi 'select pid,name,path from processes limit 25;'"
+
+  - id: suricata
+    name: Suricata
+    category: blue
+    subcategory: network-detection
     priority: recommended
+    description: IDS/IPS and network security monitoring engine.
+    command: suricata
+    requires_root: true
+
+  - id: clamav
+    name: ClamAV
+    category: blue
+    subcategory: malware
+    priority: optional
+    description: Local malware scanning engine.
+    command: clamscan
+    offline: true
+    recipes:
+      - name: Recursive scan
+        command: "clamscan -r ./evidence"
+
+  - id: nuclei
+    name: Nuclei
+    category: red
+    subcategory: validation
+    priority: core
+    description: Template-driven security validation for authorised targets.
+    command: nuclei
+    authorised_use_only: true
+    recipes:
+      - name: Single authorised target
+        command: "nuclei -u https://example.internal"
+
+  - id: amass
+    name: Amass
+    category: red
+    subcategory: reconnaissance
+    priority: recommended
+    description: Asset discovery and attack-surface mapping for owned domains.
+    command: amass
+    authorised_use_only: true
+
+  - id: nikto
+    name: Nikto
+    category: red
+    subcategory: web
+    priority: optional
+    description: Web server configuration and known-issue scanner.
+    command: nikto
+    authorised_use_only: true
+
+  - id: testssl
+    name: testssl.sh
+    category: red
+    subcategory: tls
+    priority: recommended
+    description: TLS configuration assessment for authorised services.
+    command: testssl.sh
+    authorised_use_only: true
+
+  - id: volatility3
+    name: Volatility 3
+    category: forensics
+    subcategory: memory
+    priority: core
+    description: Memory forensics framework.
+    command: vol
+    offline: true
+    recipes:
+      - name: Windows process list
+        command: "vol -f memory.raw windows.pslist"
+      - name: Windows network scan
+        command: "vol -f memory.raw windows.netscan"
+
+  - id: binwalk
+    name: Binwalk
+    category: forensics
+    subcategory: firmware
+    priority: core
+    description: Firmware image inspection and embedded-file discovery.
+    command: binwalk
+    offline: true
+    recipes:
+      - name: Inspect firmware
+        command: "binwalk firmware.bin"
+
+  - id: exiftool
+    name: ExifTool
+    category: forensics
+    subcategory: metadata
+    priority: core
+    description: Extract metadata from files, images and documents.
+    command: exiftool
+    offline: true
+    recipes:
+      - name: Inspect file
+        command: "exiftool evidence.bin"
+
+  - id: hashdeep
+    name: hashdeep
+    category: forensics
+    subcategory: integrity
+    priority: recommended
+    description: Recursive file hashing and integrity verification.
+    command: hashdeep
+    offline: true
+    recipes:
+      - name: Hash evidence tree
+        command: "hashdeep -r ./evidence"
+
+  - id: strings
+    name: strings
+    category: forensics
+    subcategory: triage
+    priority: core
+    description: Extract printable strings from binary artefacts.
+    command: strings
+    offline: true
+    recipes:
+      - name: Inspect binary
+        command: "strings suspicious.bin"
+
   - id: meshtastic
     name: Meshtastic CLI/API
     category: comms
+    subcategory: mesh
     priority: core
+    description: LoRa mesh communications and node management.
+    command: meshtastic
+    offline: true
+    recipes:
+      - name: Device info
+        command: "meshtastic --info"
+      - name: Node list
+        command: "meshtastic --nodes"
+
+  - id: minicom
+    name: minicom
+    category: comms
+    subcategory: serial
+    priority: recommended
+    description: Serial terminal for field devices and embedded systems.
+    command: minicom
+    offline: true
+
   - id: gpsd
     name: gpsd
     category: field
     subcategory: navigation
     priority: core
+    description: GNSS daemon and location data service.
+    command: gpsd
+    offline: true
+
+  - id: gpspipe
+    name: gpspipe
+    category: field
+    subcategory: navigation
+    priority: recommended
+    description: Stream GNSS data from gpsd.
+    command: gpspipe
+    offline: true
+    recipes:
+      - name: JSON stream
+        command: "gpspipe -w"
+
+  - id: sqlite
+    name: SQLite
+    category: field
+    subcategory: sessions
+    priority: core
+    description: Local structured storage for sessions and timelines.
+    command: sqlite3
+    offline: true
+
+  - id: git
+    name: Git
+    category: field
+    subcategory: sync
+    priority: core
+    description: Version control and field configuration synchronisation.
+    command: git
+    offline: true
+
+  - id: flipper
+    name: qFlipper / Flipper Zero
+    category: hardware
+    subcategory: field-instrument
+    priority: core
+    description: Removable Flipper Zero management and file access.
+    command: qflipper
+    offline: true
+
+  - id: sigrok
+    name: sigrok-cli
+    category: hardware
+    subcategory: logic-analysis
+    priority: recommended
+    description: Logic analyser capture and protocol decoding.
+    command: sigrok-cli
+    offline: true
+
+  - id: picocom
+    name: picocom
+    category: hardware
+    subcategory: serial
+    priority: core
+    description: Minimal serial terminal for embedded hardware.
+    command: picocom
+    offline: true
+    recipes:
+      - name: Open serial console
+        command: "picocom -b 115200 /dev/ttyUSB0"
+
+  - id: lsusb
+    name: lsusb
+    category: hardware
+    subcategory: usb
+    priority: core
+    description: Enumerate attached USB devices.
+    command: lsusb
+    offline: true
+
+  - id: i2cdetect
+    name: i2cdetect
+    category: hardware
+    subcategory: i2c
+    priority: recommended
+    description: Enumerate devices on an I2C bus.
+    command: i2cdetect
+    offline: true
+    recipes:
+      - name: Scan bus 1
+        command: "i2cdetect -y 1"
+
   - id: rtl433
     name: rtl_433
     category: rf
-    priority: planned
+    subcategory: receive
+    priority: core
+    description: Decode supported low-power ISM-band devices with an RTL-SDR.
+    command: rtl_433
+    offline: true
+    recipes:
+      - name: Start decoder
+        command: "rtl_433"
+      - name: JSON output
+        command: "rtl_433 -F json"
+
+  - id: rtlpower
+    name: rtl_power
+    category: rf
+    subcategory: spectrum
+    priority: recommended
+    description: Wideband power scanning with RTL-SDR hardware.
+    command: rtl_power
+    offline: true
+
+  - id: gqrx
+    name: Gqrx
+    category: rf
+    subcategory: receiver
+    priority: recommended
+    description: Interactive SDR receiver interface.
+    command: gqrx
+    offline: true
+
+  - id: cyberchef
+    name: CyberChef
+    category: utilities
+    subcategory: transform
+    priority: core
+    description: Offline data transformation and decoding workbench.
+    command: cyberchef
+    offline: true
+
+  - id: jq
+    name: jq
+    category: utilities
+    subcategory: data
+    priority: core
+    description: Command-line JSON processor.
+    command: jq
+    offline: true
+    recipes:
+      - name: Pretty print JSON
+        command: "jq . input.json"
+
+  - id: yq
+    name: yq
+    category: utilities
+    subcategory: data
+    priority: core
+    description: Command-line YAML processor.
+    command: yq
+    offline: true
+
+  - id: ripgrep
+    name: ripgrep
+    category: utilities
+    subcategory: search
+    priority: core
+    description: Fast recursive text search.
+    command: rg
+    offline: true
+    recipes:
+      - name: Recursive search
+        command: "rg -n 'needle' ."
+
+  - id: fzf
+    name: fzf
+    category: utilities
+    subcategory: search
+    priority: core
+    description: Fuzzy finder for files, command output and history.
+    command: fzf
+    offline: true
+
+  - id: openssl
+    name: OpenSSL
+    category: utilities
+    subcategory: crypto
+    priority: core
+    description: Cryptographic inspection, hashing and certificate utilities.
+    command: openssl
+    offline: true
+    recipes:
+      - name: SHA-256 file hash
+        command: "openssl dgst -sha256 evidence.bin"
+      - name: Inspect certificate
+        command: "openssl x509 -in certificate.pem -text -noout"
+
+  - id: curl
+    name: curl
+    category: utilities
+    subcategory: network
+    priority: core
+    description: Transfer data and inspect HTTP endpoints.
+    command: curl
+    recipes:
+      - name: Response headers
+        command: "curl -I https://example.com"
+
+  - id: tmux
+    name: tmux
+    category: utilities
+    subcategory: terminal
+    priority: core
+    description: Persistent terminal multiplexer for field workflows.
+    command: tmux
+    offline: true
+
+  - id: btop
+    name: btop
+    category: utilities
+    subcategory: system
+    priority: recommended
+    description: Interactive system resource monitor.
+    command: btop
+    offline: true
+
+  - id: socat
+    name: socat
+    category: utilities
+    subcategory: network
+    priority: recommended
+    description: General-purpose bidirectional data relay.
+    command: socat
+    offline: true
