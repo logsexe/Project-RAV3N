@@ -39,17 +39,19 @@ Project RAV3N is a rugged, modular Raspberry Pi 5 field-computing platform combi
 - Patriot 256 GB microSDXC
 - Flipper Zero — removable field instrument
 
-The keyboard is intended to sit flush in a custom 3D-printed lid cradle/bezel. Final CAD dimensions will be based on physical measurements rather than nominal product dimensions.
+The keyboard is intended to sit flush in the lid using the RVN-KB1 removable retention system. Final printable CAD dimensions will be based on physical measurements and test fits rather than nominal product dimensions.
 
 ## FIELD//OS
 
-FIELD//OS is the operator environment for RAVEN. V0.1 is now running as a keyboard-first Textual terminal dashboard with mock RVN-01 telemetry so development can continue before the Raspberry Pi arrives.
+FIELD//OS is the operator environment for RAVEN. V0.1.1 is a keyboard-first Textual terminal dashboard with mock RVN-01 telemetry so development can continue before the Raspberry Pi arrives.
+
+The dashboard now uses a compact standard module list rather than a tile grid. Selecting or highlighting a module shows its description and all tools currently mapped to that category from the local YAML manifest. Global search also queries the local tool index.
 
 Current primary sections:
 
 `BLUE // RED // NETWORK // FORENSICS // FIELD // COMMS // HARDWARE // RF // UTILITIES`
 
-### Run the V0.1 development build
+### Run the development build
 
 Requires Python 3.11+.
 
@@ -81,13 +83,19 @@ python -m fieldos
 
 ### Current controls
 
-- Arrow keys — move between modules
+- Up / Down — navigate modules
+- Enter — select module
 - `/` — focus global search
-- `Enter` — select a module
-- `Esc` — return to dashboard
-- `Q` — quit
+- Esc — return focus to module list / clear search
+- Q — quit
 
 Hardware status currently uses a mock provider. Real Pi, Meshtastic, GNSS, battery and network adapters will replace those mocks as hardware comes online.
+
+### Current tool index
+
+The initial manifest lives at `config/tools/core.yaml` and currently contains tools such as Nmap, Wireshark/tshark, tcpdump, Kismet, CyberChef, YARA, Chainsaw, Hayabusa, Volatility 3, Binwalk, Nuclei, osquery, Meshtastic, gpsd and rtl_433.
+
+Curated repositories such as SquidSec CyberDeck, A-poc BlueTeam-Tools and A-poc RedTeam-Tools remain knowledge sources rather than instructions to install every tool they reference.
 
 ## Repository layout
 
@@ -101,7 +109,7 @@ Hardware status currently uses a mock provider. Real Pi, Meshtastic, GNSS, batte
 
 **Phase 0 — Architecture & prototyping**
 
-Current priorities are FIELD//OS V0.1, RVN-01 physical measurements, keyboard cradle CAD, component layout and hardware BOM. Hardware-dependent integrations use mock adapters until the Raspberry Pi and peripherals are available.
+Current priorities are FIELD//OS V0.1.x, RVN-01 physical measurements, RVN-KB1 CAD, component layout and hardware BOM. Hardware-dependent integrations use mock adapters until the Raspberry Pi and peripherals are available.
 
 ---
 
