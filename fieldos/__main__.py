@@ -1,4 +1,4 @@
-from .app_v05 import FieldOSApp
+from .app_v1 import FieldOSApp
 
 
 def main() -> None:
