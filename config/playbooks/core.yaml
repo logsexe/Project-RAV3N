@@ -1,0 +1,96 @@
+schema_version: 1
+
+playbooks:
+  - id: network-triage
+    name: Network Triage
+    category: network
+    description: Fast local network visibility and service triage.
+    steps:
+      - name: Identify interfaces
+        description: Confirm local addressing and active interfaces before scanning.
+        command: ip addr
+      - name: Route context
+        description: Review current routes and default gateway.
+        command: ip route
+      - name: Host discovery
+        description: Discover live hosts on an authorised subnet.
+        tool: nmap
+        command: nmap -sn <authorised-subnet>
+      - name: Service inventory
+        description: Enumerate services on an authorised target.
+        tool: nmap
+        command: nmap -sV <authorised-target>
+
+  - id: windows-ir
+    name: Windows IR
+    category: blue
+    description: Offline-first Windows incident-response evidence workflow.
+    steps:
+      - name: Preserve evidence
+        description: Work from a copy and record hashes before analysis.
+      - name: Event-log triage
+        description: Analyse collected EVTX files with Hayabusa.
+        tool: hayabusa
+        command: hayabusa csv-timeline -d <evtx-directory> -o timeline.csv
+      - name: Hunt event logs
+        description: Apply Chainsaw rules to an authorised evidence directory.
+        tool: chainsaw
+        command: chainsaw hunt <evtx-directory>
+      - name: Indicator scan
+        description: Scan an offline evidence tree with an approved YARA ruleset.
+        tool: yara
+        command: yara -r <rules.yar> <evidence-directory>
+
+  - id: evidence-intake
+    name: Evidence Intake
+    category: forensics
+    description: Record, hash and stage acquired files for later analysis.
+    steps:
+      - name: Record source
+        description: Add an operation note describing evidence origin and handling.
+      - name: Hash evidence
+        description: Produce recursive hashes for an evidence directory.
+        tool: hashdeep
+        command: hashdeep -r <evidence-directory>
+      - name: File metadata
+        description: Extract metadata from selected files.
+        tool: exiftool
+        command: exiftool <evidence-file>
+      - name: Firmware triage
+        description: Inspect firmware or binary containers where relevant.
+        tool: binwalk
+        command: binwalk <firmware-image>
+
+  - id: wireless-survey
+    name: Wireless Survey
+    category: network
+    description: Passive-first authorised wireless environment survey.
+    steps:
+      - name: Interface check
+        description: Confirm the dedicated wireless interface is present.
+        command: ip link
+      - name: Passive survey
+        description: Observe authorised/local wireless activity with Kismet.
+        tool: kismet
+        command: kismet
+      - name: Capture review
+        description: Inspect a saved capture with tshark.
+        tool: wireshark
+        command: tshark -r <capture.pcapng>
+
+  - id: rf-observation
+    name: RF Observation
+    category: rf
+    description: Receive-only SDR workflow for local spectrum observation.
+    steps:
+      - name: Device check
+        description: Confirm the SDR is visible before capture.
+        command: rtl_test -t
+      - name: ISM decode
+        description: Receive and decode supported local ISM devices.
+        tool: rtl433
+        command: rtl_433
+      - name: Spectrum sweep
+        description: Produce a receive-only power sweep for later review.
+        tool: rtl_power
+        command: rtl_power -f <start>:<stop>:<bin-size> sweep.csv
