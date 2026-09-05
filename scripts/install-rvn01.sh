@@ -21,7 +21,7 @@ echo "Source:   ${SOURCE_DIR}"
 echo "Target:   ${TARGET_DIR}"
 
 apt-get update
-apt-get install -y python3 python3-venv python3-pip git
+apt-get install -y python3 python3-venv python3-pip git rsync
 
 mkdir -p "${TARGET_DIR}"
 rsync -a --delete --exclude '.git' --exclude '.venv' "${SOURCE_DIR}/" "${TARGET_DIR}/"
