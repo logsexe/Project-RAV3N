@@ -1,0 +1,150 @@
+schema_version: 1
+entries:
+  - id: network-triage-baseline
+    title: Network Triage Baseline
+    category: network
+    source: FIELD//OS
+    summary: Fast local network context before deeper analysis.
+    body: |
+      Confirm local interfaces, addresses, routes and DNS before scanning.
+      Prefer passive observation first when working on unfamiliar networks.
+      Record the active operation before generating captures or scan artefacts.
+    command: ip addr
+
+  - id: packet-capture-baseline
+    title: Packet Capture Baseline
+    category: network
+    source: FIELD//OS
+    summary: Minimal tcpdump capture pattern for an authorised interface.
+    body: |
+      Identify the correct interface first and write captures into the active
+      operation captures directory where possible. Keep capture scope narrow.
+    command: tcpdump -i <interface> -w capture.pcap
+
+  - id: nmap-host-discovery
+    title: Nmap Host Discovery
+    category: network
+    source: FIELD//OS
+    summary: Discover responsive systems on an authorised subnet.
+    body: |
+      Use only on networks you own or are authorised to assess. Begin with host
+      discovery before moving to targeted service enumeration.
+    command: nmap -sn <authorised-subnet>
+
+  - id: windows-ir-first-look
+    title: Windows IR First Look
+    category: blue
+    source: FIELD//OS
+    summary: Initial evidence-preserving triage priorities for a Windows host.
+    body: |
+      Record time, host identity, logged-in users, network connections and
+      running processes. Preserve source evidence and perform analysis on copies.
+
+  - id: yara-workflow
+    title: YARA Triage Workflow
+    category: blue
+    source: FIELD//OS
+    summary: Apply a known ruleset to a controlled file or evidence directory.
+    body: |
+      Validate the ruleset source, record rule version and scan a copy of evidence.
+      Treat YARA matches as leads requiring validation rather than conclusions.
+    command: yara -r <rules.yar> <path>
+
+  - id: evidence-integrity
+    title: Evidence Integrity
+    category: forensics
+    source: FIELD//OS
+    summary: Hash evidence before and after transfer or analysis.
+    body: |
+      Store acquisition notes, original hashes and working-copy hashes with the
+      operation. Avoid modifying original evidence wherever practical.
+    command: hashdeep -c sha256 <path>
+
+  - id: volatility-first-look
+    title: Volatility Memory First Look
+    category: forensics
+    source: FIELD//OS
+    summary: Begin memory analysis with process and network context.
+    body: |
+      Confirm the memory image source and preserve the original. Start with
+      process listings and network artefacts, then pivot based on findings.
+    command: vol -f <memory-image> windows.pslist
+
+  - id: meshtastic-baseline
+    title: Meshtastic Field Baseline
+    category: comms
+    source: FIELD//OS
+    summary: Confirm device connectivity and node visibility before messaging.
+    body: |
+      Verify the configured radio region and local regulatory requirements before
+      deployment. FIELD//OS should treat Meshtastic as a first-class comms module.
+    command: meshtastic --info
+
+  - id: gnss-baseline
+    title: GNSS / gpsd Baseline
+    category: field
+    source: FIELD//OS
+    summary: Inspect live GNSS JSON from gpsd.
+    body: |
+      Confirm fix state, timestamp and reported coordinates before logging a
+      waypoint. Hardware may report no fix indoors or before satellite lock.
+    command: gpspipe -w
+
+  - id: usb-hardware-first-look
+    title: USB Hardware First Look
+    category: hardware
+    source: FIELD//OS
+    summary: Enumerate attached USB devices before opening serial or tool adapters.
+    body: |
+      Record vendor/product identity and disconnect unknown hardware if it creates
+      an unexpected trust or power risk.
+    command: lsusb
+
+  - id: serial-console-baseline
+    title: Serial Console Baseline
+    category: hardware
+    source: FIELD//OS
+    summary: Open an explicitly selected serial device with a known baud rate.
+    body: |
+      Confirm voltage levels and interface type before connecting hardware.
+      Never assume a header is safe TTL UART without checking documentation.
+    command: picocom -b 115200 <serial-device>
+
+  - id: rtl-sdr-observation
+    title: RTL-SDR Observation Baseline
+    category: rf
+    source: FIELD//OS
+    summary: Receive-side RF observation workflow for RTL-SDR hardware.
+    body: |
+      Start receive-only. Confirm local frequency allocations and operational
+      constraints before monitoring. Save observations to the active operation.
+    command: rtl_power -f <start>:<stop>:<bin-size> spectrum.csv
+
+  - id: openssl-hash
+    title: OpenSSL SHA-256
+    category: utilities
+    source: FIELD//OS
+    summary: Generate a SHA-256 digest for a file.
+    body: Use as a quick integrity check when a dedicated evidence hashing workflow is not required.
+    command: openssl dgst -sha256 <file>
+
+  - id: squidsec-adapter
+    title: SquidSec CyberDeck Local Adapter
+    category: knowledge
+    source: FIELD//OS
+    summary: Index a local SquidSec CyberDeck checkout into FIELD//OS search.
+    body: |
+      Set FIELDOS_KNOWLEDGE_PATHS to the local CyberDeck repository path before
+      launching FIELD//OS. Multiple repositories can be provided using the host
+      operating system path separator. Markdown, text, YAML and JSON are indexed
+      locally; FIELD//OS does not install referenced tools automatically.
+
+  - id: apoc-adapter
+    title: A-poc BlueTeam / RedTeam Local Adapter
+    category: knowledge
+    source: FIELD//OS
+    summary: Add local BlueTeam-Tools and RedTeam-Tools repositories to offline search.
+    body: |
+      Add each local checkout to FIELDOS_KNOWLEDGE_PATHS. Treat these repositories
+      as curated knowledge sources. Tool availability and ARM64 compatibility still
+      need to be validated before installation on RVN-01.
