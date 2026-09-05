@@ -50,17 +50,21 @@
 - [x] Session directory structure for notes/scans/captures/evidence/exports
 - [x] Active operation shown in compact status bar
 - [x] Operator playbook engine
-- [x] Core Network Triage playbook
-- [x] Core Windows IR playbook
-- [x] Core Evidence Intake playbook
-- [x] Core Wireless Survey playbook
-- [x] Core RF Observation playbook
+- [x] Network Triage / Windows IR / Evidence Intake playbooks
+- [x] Wireless Survey / RF Observation playbooks
 - [x] Playbook step command staging into terminal
-- [ ] Favourites and recent tools
-- [ ] Offline knowledge-source search
-- [ ] SquidSec adapter/indexer
-- [ ] Theme configuration
-- [ ] Session export/archive workflow
+
+## FIELD//OS V0.5 — Offline knowledge and operator state
+
+- [x] Persistent favourites
+- [x] Persistent recent tools
+- [x] Combined tool + knowledge global search
+- [x] Bundled offline knowledge vault
+- [x] Local documentation/repository indexer
+- [x] SquidSec / BlueTeam-Tools / RedTeam-Tools local adapter via FIELDOS_KNOWLEDGE_PATHS
+- [x] Knowledge entries can stage example commands into terminal
+- [x] Operation ZIP export workflow
+- [x] Compact Favourites / Recent / Knowledge views
 
 ## Hardware REV A
 
@@ -78,17 +82,19 @@
 - [ ] Dedicated Wi-Fi interface selection
 - [ ] RTL-SDR planning
 
-## FIELD//OS V0.5+
+## FIELD//OS V0.6+
 
+- [ ] Theme configuration / low-light profiles
 - [ ] Meshtastic adapter
 - [ ] GNSS/gpsd adapter
 - [ ] Real system telemetry
 - [ ] Network interface manager
 - [ ] Event timeline beyond notes
-- [ ] Offline knowledge vault
-- [ ] Tool result normalisation
-- [ ] Session exports
+- [ ] Tool result normalisation into operation folders
+- [ ] Command output capture to scans/captures/evidence
 - [ ] Appliance-style startup profile
+- [ ] ARM64 installation/bootstrap tooling
+- [ ] Automated compatibility checks for Pi tool manifests
 
 ## V1 target
 
