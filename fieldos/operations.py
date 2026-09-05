@@ -87,6 +87,25 @@ class OperationSessionManager:
         item = session or self.active
         return self.root / item.id
 
+    def capture_command(self, command: str, output: list[str], exit_code: int | None, terminal_name: str) -> Path:
+        """Persist a terminal command transcript under the active operation."""
+        self._ensure_dirs(self.active)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        slug = re.sub(r"[^A-Za-z0-9_-]+", "-", command.strip())[:48].strip("-") or "command"
+        path = self.session_path() / "commands" / f"{stamp}-{slug}.txt"
+        header = [
+            f"OPERATION: {self.active.id}",
+            f"TERMINAL: {terminal_name}",
+            f"TIMESTAMP: {datetime.now().isoformat(timespec='seconds')}",
+            f"COMMAND: {command}",
+            f"EXIT: {exit_code if exit_code is not None else 'ERROR'}",
+            "",
+        ]
+        path.write_text("\n".join(header + output) + "\n", encoding="utf-8", errors="replace")
+        self.active.touch()
+        self._save(self.active)
+        return path
+
     def export_active(self) -> Path:
         """Create a ZIP snapshot of the active operation under ~/.fieldos/exports."""
         self._save(self.active)
@@ -99,7 +118,7 @@ class OperationSessionManager:
 
     def _ensure_dirs(self, session: OperationSession) -> None:
         base = self.session_path(session)
-        for child in ("notes", "scans", "captures", "evidence", "exports"):
+        for child in ("notes", "commands", "scans", "captures", "evidence", "exports"):
             (base / child).mkdir(parents=True, exist_ok=True)
 
     def _save(self, session: OperationSession) -> None:
