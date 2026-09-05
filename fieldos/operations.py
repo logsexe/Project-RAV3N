@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 
 
 def _data_root() -> Path:
@@ -33,11 +34,7 @@ class OperationSession:
 
 
 class OperationSessionManager:
-    """Persistent FIELD//OS operation/session store.
-
-    Sessions are intentionally simple JSON files so they remain readable and
-    recoverable even when FIELD//OS is not running.
-    """
+    """Persistent FIELD//OS operation/session store."""
 
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or (_data_root() / "sessions")
@@ -89,6 +86,16 @@ class OperationSessionManager:
     def session_path(self, session: OperationSession | None = None) -> Path:
         item = session or self.active
         return self.root / item.id
+
+    def export_active(self) -> Path:
+        """Create a ZIP snapshot of the active operation under ~/.fieldos/exports."""
+        self._save(self.active)
+        exports = self.root.parent / "exports"
+        exports.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        base = exports / f"{self.active.id}-{stamp}"
+        archive = shutil.make_archive(str(base), "zip", root_dir=self.session_path())
+        return Path(archive)
 
     def _ensure_dirs(self, session: OperationSession) -> None:
         base = self.session_path(session)
