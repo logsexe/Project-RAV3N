@@ -6,7 +6,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Input, Label, ListItem, ListView, Static
 
 from fieldos.hardware.mock import MockTelemetryProvider
-from fieldos.tools import ToolIndex
+from fieldos.tools import ToolIndex, ToolRecord
 
 
 CATEGORIES = [
@@ -22,8 +22,14 @@ CATEGORIES = [
 ]
 
 
+class ToolPane(Static):
+    """Focusable module library pane used for keyboard-only navigation."""
+
+    can_focus = True
+
+
 class FieldOSApp(App[None]):
-    """FIELD//OS V0.1.2 development dashboard."""
+    """FIELD//OS V0.1.3 development dashboard."""
 
     TITLE = "RAVEN // RVN-01 // FIELD//OS"
     SUB_TITLE = "FIELD OPERATIONS TERMINAL // DEVELOPMENT UNIT"
@@ -111,6 +117,12 @@ class FieldOSApp(App[None]):
         width: 1fr;
         height: 1fr;
         padding: 0 2;
+        border-left: solid #151c20;
+    }
+
+    #content:focus-within {
+        background: #0c1215;
+        border-left: heavy #8e9aa0;
     }
 
     #content-title {
@@ -126,8 +138,21 @@ class FieldOSApp(App[None]):
 
     #content-body {
         height: 1fr;
-        padding-top: 1;
+        padding: 1 1;
         color: #c3cbce;
+        border: solid #252e33;
+    }
+
+    #content-body:focus {
+        color: #ffffff;
+        background: #10181c;
+        border: heavy #9eaaaf;
+    }
+
+    #nav-hint {
+        height: 1;
+        margin-top: 1;
+        color: #68747a;
     }
 
     #telemetry {
@@ -158,12 +183,20 @@ class FieldOSApp(App[None]):
         Binding("q", "quit", "Quit"),
         Binding("/", "search", "Search"),
         Binding("escape", "dashboard", "Dashboard"),
+        Binding("right", "enter_library", "Enter Library", show=False),
+        Binding("left", "leave_library", "Back", show=False),
+        Binding("up", "tool_up", "Previous", show=False),
+        Binding("down", "tool_down", "Next", show=False),
+        Binding("enter", "activate", "Select", show=False),
     ]
 
     def __init__(self) -> None:
         super().__init__()
         self.telemetry_provider = MockTelemetryProvider()
         self.tools = ToolIndex.load_default()
+        self.active_category_index = 0
+        self.active_tools: list[ToolRecord] = []
+        self.active_tool_index = 0
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -172,7 +205,7 @@ class FieldOSApp(App[None]):
             with Vertical(id="identity"):
                 yield Static("RAVEN // RVN-01", id="platform")
                 yield Static(
-                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.1.2",
+                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.1.3",
                     id="designation",
                 )
 
@@ -196,7 +229,11 @@ class FieldOSApp(App[None]):
                 with Vertical(id="content"):
                     yield Static("BLUE // MODULE", id="content-title")
                     yield Static("Defensive security / hunting", id="content-description")
-                    yield Static("", id="content-body")
+                    yield ToolPane("", id="content-body")
+                    yield Static(
+                        "RIGHT enter library // LEFT return // UP/DOWN navigate // ENTER select",
+                        id="nav-hint",
+                    )
 
             yield Static("SYSTEM TELEMETRY INITIALISING", id="telemetry")
             yield Static("RECON // ANALYSE // OPERATE", id="mission")
@@ -232,11 +269,46 @@ class FieldOSApp(App[None]):
         search.value = ""
         category_list = self.query_one("#category-list", ListView)
         category_list.focus()
-        index = category_list.index or 0
+        index = category_list.index or self.active_category_index
         self.set_active_category(index)
         self.render_category(CATEGORIES[index][0])
 
+    def action_enter_library(self) -> None:
+        if isinstance(self.focused, Input):
+            return
+        if not self.active_tools:
+            self.notify("MODULE LIBRARY // EMPTY", title="FIELD//OS", timeout=1.5)
+            return
+        self.query_one("#content-body", ToolPane).focus()
+        self.render_tool_list()
+
+    def action_leave_library(self) -> None:
+        if isinstance(self.focused, ToolPane):
+            self.query_one("#category-list", ListView).focus()
+            self.render_tool_list()
+
+    def action_tool_up(self) -> None:
+        if not isinstance(self.focused, ToolPane) or not self.active_tools:
+            return
+        self.active_tool_index = max(0, self.active_tool_index - 1)
+        self.render_tool_list()
+
+    def action_tool_down(self) -> None:
+        if not isinstance(self.focused, ToolPane) or not self.active_tools:
+            return
+        self.active_tool_index = min(
+            len(self.active_tools) - 1,
+            self.active_tool_index + 1,
+        )
+        self.render_tool_list()
+
+    def action_activate(self) -> None:
+        if isinstance(self.focused, ToolPane) and self.active_tools:
+            tool = self.active_tools[self.active_tool_index]
+            self.render_tool_detail(tool)
+
     def set_active_category(self, index: int) -> None:
+        self.active_category_index = index
         items = list(self.query("#category-list > ListItem"))
         for item_index, item in enumerate(items):
             item.set_class(item_index == index, "active")
@@ -258,38 +330,69 @@ class FieldOSApp(App[None]):
         self.set_active_category(index)
         category = event.item.id.removeprefix("category-").upper()
         self.render_category(category)
-        self.notify(f"{category} MODULE // READY", title="RAVEN", timeout=1.5)
+        self.action_enter_library()
 
     def render_category(self, category: str) -> None:
         description = next(
             (desc for name, desc in CATEGORIES if name == category),
             "FIELD//OS module",
         )
-        tools = self.tools.for_category(category.lower())
+        self.active_tools = self.tools.for_category(category.lower())
+        self.active_tool_index = 0
 
         self.query_one("#content-title", Static).update(f"{category} // MODULE")
         self.query_one("#content-description", Static).update(description)
+        self.render_tool_list()
 
-        if not tools:
-            body = (
+    def render_tool_list(self) -> None:
+        pane = self.query_one("#content-body", ToolPane)
+
+        if not self.active_tools:
+            pane.update(
                 "STATUS      READY\n"
                 "TOOLS       NONE INDEXED YET\n\n"
                 "This module is online, but no tool manifests currently map to it."
             )
-        else:
-            lines = [
-                "STATUS      READY",
-                f"TOOLS       {len(tools)} INDEXED",
-                "",
-            ]
-            for tool in tools:
-                subcategory = f" // {tool.subcategory}" if tool.subcategory else ""
-                lines.append(
-                    f"> {tool.name:<24} [{tool.priority.upper()}]{subcategory}"
-                )
-            body = "\n".join(lines)
+            return
 
-        self.query_one("#content-body", Static).update(body)
+        lines = [
+            "STATUS      READY",
+            f"TOOLS       {len(self.active_tools)} INDEXED",
+            "",
+        ]
+        tool_pane_active = isinstance(self.focused, ToolPane)
+
+        for index, tool in enumerate(self.active_tools):
+            marker = ">>" if tool_pane_active and index == self.active_tool_index else "  "
+            subcategory = f" // {tool.subcategory}" if tool.subcategory else ""
+            lines.append(
+                f"{marker} {tool.name:<24} [{tool.priority.upper()}]{subcategory}"
+            )
+
+        if not tool_pane_active:
+            lines.extend(["", "RIGHT ARROW // ENTER MODULE LIBRARY"])
+
+        pane.update("\n".join(lines))
+
+    def render_tool_detail(self, tool: ToolRecord) -> None:
+        flags = []
+        if tool.offline:
+            flags.append("OFFLINE CAPABLE")
+        if tool.authorised_use_only:
+            flags.append("AUTHORISED USE")
+        flag_text = " // ".join(flags) if flags else "STANDARD"
+
+        body = (
+            f"{tool.name.upper()}\n"
+            f"ID          {tool.id}\n"
+            f"CATEGORY    {tool.category.upper()}\n"
+            f"SUBCATEGORY {(tool.subcategory or 'GENERAL').upper()}\n"
+            f"PRIORITY    {tool.priority.upper()}\n"
+            f"MODE        {flag_text}\n\n"
+            "TOOL DETAIL PAGE // COMMANDS AND ACTIONS COMING NEXT\n\n"
+            "LEFT ARROW returns to module navigation."
+        )
+        self.query_one("#content-body", ToolPane).update(body)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         query = event.value.strip()
@@ -315,7 +418,7 @@ class FieldOSApp(App[None]):
                 )
             body = "\n".join(lines)
 
-        self.query_one("#content-body", Static).update(body)
+        self.query_one("#content-body", ToolPane).update(body)
 
 
 if __name__ == "__main__":
