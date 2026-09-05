@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fieldos"
-version = "0.5.0.dev0"
+version = "1.0.0"
 description = "FIELD//OS operator environment for RAVEN RVN-01"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 fieldos = "fieldos.__main__:main"
+fieldos-check = "fieldos.health:main"
 
 [tool.setuptools.packages.find]
 include = ["fieldos*"]
