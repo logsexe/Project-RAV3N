@@ -23,13 +23,27 @@
 - [x] Categories
 - [x] Tool manifest loader
 - [x] Local manifest search
+- [x] Mock telemetry adapter
+- [x] Tool detail views
+- [x] Installed-tool detection
+- [x] Hierarchical left/right navigation
+
+## FIELD//OS V0.2 — Operator console
+
+- [x] Breadcrumb navigation
+- [x] Active-pane visual state
+- [x] Expanded multi-category core tool library
+- [x] Rich tool metadata
+- [x] Operator command recipes
+- [x] Recipe-aware search
+- [x] Manifest / installed-tool status bar
 - [ ] Search knowledge sources and commands
 - [ ] SquidSec adapter/indexer
 - [ ] Session model
-- [x] Mock telemetry adapter
+- [ ] Favourites and recent tools
 - [ ] Theme configuration
-- [ ] Tool detail / launch views
-- [ ] Installed-tool detection
+- [ ] Safe command hand-off / copy workflow
+- [ ] Playbook engine
 
 ## Hardware REV A
 
@@ -47,17 +61,17 @@
 - [ ] Dedicated Wi-Fi interface selection
 - [ ] RTL-SDR planning
 
-## FIELD//OS V0.2+
+## FIELD//OS V0.3+
 
 - [ ] Meshtastic adapter
 - [ ] GNSS/gpsd adapter
-- [ ] system telemetry
+- [ ] real system telemetry
 - [ ] network interface manager
-- [ ] favourites and recent tools
-- [ ] playbooks
 - [ ] event timeline
 - [ ] offline knowledge vault
 - [ ] tool result normalisation
+- [ ] session exports
+- [ ] appliance-style startup profile
 
 ## V1 target
 
