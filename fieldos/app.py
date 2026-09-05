@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+import os
+from datetime import datetime
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Header, Input, Label, ListItem, ListView, Static
+from textual.widgets import Footer, Header, Input, Label, ListItem, ListView, RichLog, Static
 
 from fieldos.hardware.mock import MockTelemetryProvider
 from fieldos.tools import ToolIndex, ToolRecord
@@ -29,7 +33,7 @@ class OperatorPane(Static):
 
 
 class FieldOSApp(App[None]):
-    """FIELD//OS V0.2 development operator console."""
+    """FIELD//OS V0.2.1 development operator console."""
 
     TITLE = "RAVEN // RVN-01 // FIELD//OS"
     SUB_TITLE = "FIELD OPERATIONS TERMINAL // DEVELOPMENT UNIT"
@@ -61,13 +65,12 @@ class FieldOSApp(App[None]):
         color: #f0f2ef;
     }
 
-    #designation {
+    #designation, #modebar {
         color: #7f8b91;
     }
 
     #modebar {
         height: 1;
-        color: #9ba7ac;
         margin-bottom: 1;
     }
 
@@ -121,7 +124,7 @@ class FieldOSApp(App[None]):
     #content {
         width: 1fr;
         height: 1fr;
-        padding: 0 2;
+        padding: 0 1 0 2;
         border-left: solid #151c20;
     }
 
@@ -148,6 +151,7 @@ class FieldOSApp(App[None]):
 
     #content-body {
         height: 1fr;
+        min-height: 8;
         padding: 1 1;
         color: #c3cbce;
         border: solid #252e33;
@@ -161,8 +165,46 @@ class FieldOSApp(App[None]):
 
     #nav-hint {
         height: 1;
-        margin-top: 1;
         color: #68747a;
+    }
+
+    #terminal-shell {
+        height: 13;
+        margin-top: 1;
+        padding: 0 1;
+        background: #080d0f;
+        border: solid #303a3f;
+    }
+
+    #terminal-title {
+        height: 1;
+        color: #d7ddd9;
+        text-style: bold;
+    }
+
+    #terminal-example {
+        height: 2;
+        color: #7f8b91;
+    }
+
+    #terminal-output {
+        height: 1fr;
+        background: #050809;
+        color: #c9d0d2;
+        border: solid #1f282c;
+        padding: 0 1;
+    }
+
+    #command-input {
+        height: 3;
+        margin-top: 1;
+        border: tall #40484d;
+        background: #0a0f12;
+    }
+
+    #command-input:focus {
+        border: tall #ffffff;
+        background: #11191d;
     }
 
     #telemetry {
@@ -198,6 +240,8 @@ class FieldOSApp(App[None]):
         Binding("up", "move_up", "Previous", show=False),
         Binding("down", "move_down", "Next", show=False),
         Binding("enter", "go_deeper", "Select", show=False),
+        Binding("ctrl+t", "terminal", "Terminal"),
+        Binding("ctrl+l", "clear_terminal", "Clear terminal"),
     ]
 
     def __init__(self) -> None:
@@ -209,6 +253,9 @@ class FieldOSApp(App[None]):
         self.active_tool_index = 0
         self.active_recipe_index = 0
         self.depth = "category"
+        self.command_history: list[str] = []
+        self.command_history_index = 0
+        self.command_running = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -217,7 +264,7 @@ class FieldOSApp(App[None]):
             with Vertical(id="identity"):
                 yield Static("RAVEN // RVN-01", id="platform")
                 yield Static(
-                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.2.0",
+                    "FIELD OPERATIONS TERMINAL // HW REV A // FIELD//OS V0.2.1",
                     id="designation",
                 )
                 yield Static("", id="modebar")
@@ -246,6 +293,18 @@ class FieldOSApp(App[None]):
                     yield OperatorPane("", id="content-body")
                     yield Static("", id="nav-hint")
 
+                    with Vertical(id="terminal-shell"):
+                        yield Static("LOCAL TERMINAL // READY", id="terminal-title")
+                        yield Static(
+                            "EXAMPLE // select a recipe to stage its command here",
+                            id="terminal-example",
+                        )
+                        yield RichLog(id="terminal-output", wrap=True, markup=False)
+                        yield Input(
+                            placeholder="rvn@fieldos $ type any local shell command",
+                            id="command-input",
+                        )
+
             yield Static("SYSTEM TELEMETRY INITIALISING", id="telemetry")
             yield Static("RECON // ANALYSE // OPERATE", id="mission")
 
@@ -260,6 +319,9 @@ class FieldOSApp(App[None]):
         self.set_active_category(0)
         self.render_category("BLUE")
         self.refresh_modebar()
+        self.write_terminal("FIELD//OS LOCAL SHELL ONLINE")
+        self.write_terminal(f"CWD // {os.getcwd()}")
+        self.write_terminal("CTRL+T focuses terminal // type any local command // ENTER executes")
 
     def refresh_modebar(self) -> None:
         installed = self.tools.installed_count()
@@ -281,9 +343,21 @@ class FieldOSApp(App[None]):
         self.query_one("#telemetry", Static).update(line)
 
     def action_search(self) -> None:
+        if isinstance(self.focused, Input) and self.focused.id == "command-input":
+            return
         self.query_one("#search", Input).focus()
 
+    def action_terminal(self) -> None:
+        self.query_one("#command-input", Input).focus()
+
+    def action_clear_terminal(self) -> None:
+        self.query_one("#terminal-output", RichLog).clear()
+        self.write_terminal("TERMINAL BUFFER CLEARED")
+
     def action_dashboard(self) -> None:
+        if isinstance(self.focused, Input) and self.focused.id == "command-input":
+            self.query_one("#content-body", OperatorPane).focus()
+            return
         search = self.query_one("#search", Input)
         search.value = ""
         category_list = self.query_one("#category-list", ListView)
@@ -315,7 +389,7 @@ class FieldOSApp(App[None]):
         if self.depth == "detail" and self.active_tools:
             tool = self.active_tools[self.active_tool_index]
             if not tool.recipes:
-                self.notify("NO RECIPES INDEXED", title=tool.name, timeout=1.5)
+                self.stage_tool_command(tool)
                 return
             self.depth = "recipes"
             self.active_recipe_index = 0
@@ -326,14 +400,13 @@ class FieldOSApp(App[None]):
             tool = self.active_tools[self.active_tool_index]
             if tool.recipes:
                 recipe = tool.recipes[self.active_recipe_index]
-                self.notify(
-                    f"RECIPE SELECTED // {recipe.name}",
-                    title=tool.name,
-                    timeout=1.5,
-                )
+                self.stage_command(recipe.command, f"{tool.name} // {recipe.name}")
 
     def action_go_back(self) -> None:
         if isinstance(self.focused, Input):
+            if self.focused.id == "command-input":
+                self.query_one("#content-body", OperatorPane).focus()
+                return
             self.action_dashboard()
             return
 
@@ -353,9 +426,12 @@ class FieldOSApp(App[None]):
             self.render_category(CATEGORIES[self.active_category_index][0])
 
     def action_move_up(self) -> None:
+        if isinstance(self.focused, Input):
+            if self.focused.id == "command-input":
+                self.command_history_up()
+            return
         if not isinstance(self.focused, OperatorPane):
             return
-
         if self.depth == "tools" and self.active_tools:
             self.active_tool_index = max(0, self.active_tool_index - 1)
             self.render_tool_list()
@@ -366,9 +442,12 @@ class FieldOSApp(App[None]):
                 self.render_recipes(self.active_tools[self.active_tool_index])
 
     def action_move_down(self) -> None:
+        if isinstance(self.focused, Input):
+            if self.focused.id == "command-input":
+                self.command_history_down()
+            return
         if not isinstance(self.focused, OperatorPane):
             return
-
         if self.depth == "tools" and self.active_tools:
             self.active_tool_index = min(len(self.active_tools) - 1, self.active_tool_index + 1)
             self.render_tool_list()
@@ -378,6 +457,22 @@ class FieldOSApp(App[None]):
                 self.active_recipe_index = min(len(recipes) - 1, self.active_recipe_index + 1)
                 self.render_recipes(self.active_tools[self.active_tool_index])
 
+    def command_history_up(self) -> None:
+        if not self.command_history:
+            return
+        self.command_history_index = max(0, self.command_history_index - 1)
+        self.query_one("#command-input", Input).value = self.command_history[self.command_history_index]
+
+    def command_history_down(self) -> None:
+        if not self.command_history:
+            return
+        self.command_history_index = min(len(self.command_history), self.command_history_index + 1)
+        command_input = self.query_one("#command-input", Input)
+        if self.command_history_index >= len(self.command_history):
+            command_input.value = ""
+        else:
+            command_input.value = self.command_history[self.command_history_index]
+
     def set_active_category(self, index: int) -> None:
         self.active_category_index = index
         items = list(self.query("#category-list > ListItem"))
@@ -385,9 +480,7 @@ class FieldOSApp(App[None]):
             item.set_class(item_index == index, "active")
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        if event.item is None or not event.item.id:
-            return
-        if self.depth != "category":
+        if event.item is None or not event.item.id or self.depth != "category":
             return
         category_list = self.query_one("#category-list", ListView)
         index = category_list.index or 0
@@ -406,55 +499,37 @@ class FieldOSApp(App[None]):
         self.action_go_deeper()
 
     def render_category(self, category: str) -> None:
-        description = next(
-            (desc for name, desc in CATEGORIES if name == category),
-            "FIELD//OS module",
-        )
+        description = next((desc for name, desc in CATEGORIES if name == category), "FIELD//OS module")
         self.active_tools = self.tools.for_category(category.lower())
         self.active_tool_index = 0
         self.active_recipe_index = 0
-
         self.query_one("#breadcrumb", Static).update(f"FIELD//OS > {category}")
         self.query_one("#content-title", Static).update(f"{category} // MODULE")
         self.query_one("#content-description", Static).update(description)
         self.render_tool_list()
         self.query_one("#nav-hint", Static).update(
-            "RIGHT / ENTER open library // UP/DOWN modules // / search"
+            "RIGHT / ENTER open library // UP/DOWN modules // CTRL+T terminal // / search"
         )
 
     def render_tool_list(self) -> None:
         pane = self.query_one("#content-body", OperatorPane)
         category = CATEGORIES[self.active_category_index][0]
         self.query_one("#breadcrumb", Static).update(f"FIELD//OS > {category} > LIBRARY")
-
         if not self.active_tools:
-            pane.update(
-                "STATUS      READY\n"
-                "TOOLS       NONE INDEXED YET\n\n"
-                "Module online. No manifests currently map to this library."
-            )
+            pane.update("STATUS      READY\nTOOLS       NONE INDEXED YET\n\nModule online. No manifests currently map to this library.")
             return
-
-        lines = [
-            f"LIBRARY      {category}",
-            f"TOOLS        {len(self.active_tools)} INDEXED",
-            "",
-        ]
+        lines = [f"LIBRARY      {category}", f"TOOLS        {len(self.active_tools)} INDEXED", ""]
         focused = self.depth == "tools"
         for index, tool in enumerate(self.active_tools):
             marker = ">>" if focused and index == self.active_tool_index else "  "
             state = "INSTALLED" if tool.installed else "AVAILABLE"
             subcategory = (tool.subcategory or "general").upper()
-            lines.append(
-                f"{marker} {tool.name:<22} {state:<9} [{tool.priority.upper()}] // {subcategory}"
-            )
-
+            lines.append(f"{marker} {tool.name:<22} {state:<9} [{tool.priority.upper()}] // {subcategory}")
         if self.depth == "category":
             lines.extend(["", "RIGHT ARROW // ENTER MODULE LIBRARY"])
-
         pane.update("\n".join(lines))
         self.query_one("#nav-hint", Static).update(
-            "UP/DOWN select tool // RIGHT / ENTER details // LEFT modules"
+            "UP/DOWN select tool // RIGHT / ENTER details // LEFT modules // CTRL+T terminal"
         )
 
     def render_tool_detail(self, tool: ToolRecord) -> None:
@@ -469,48 +544,45 @@ class FieldOSApp(App[None]):
         flag_text = " // ".join(flags) if flags else "STANDARD"
         installed = "YES" if tool.installed else "NO"
         command = tool.command or "N/A"
-        platforms = ", ".join(tool.platforms).upper() if tool.platforms else "AUTO"
-
-        self.query_one("#breadcrumb", Static).update(
-            f"FIELD//OS > {category} > {tool.name.upper()}"
-        )
+        platforms = ", ".join(tool.platforms) if tool.platforms else "unspecified"
+        self.query_one("#breadcrumb", Static).update(f"FIELD//OS > {category} > {tool.name.upper()}")
         self.query_one("#content-title", Static).update(f"{tool.name.upper()} // TOOL")
-        self.query_one("#content-description", Static).update(
-            tool.description or "FIELD//OS tool manifest"
-        )
-
-        body = (
-            f"ID           {tool.id}\n"
-            f"CATEGORY     {category}\n"
-            f"SUBCATEGORY  {(tool.subcategory or 'GENERAL').upper()}\n"
-            f"PRIORITY     {tool.priority.upper()}\n"
-            f"EXECUTABLE   {command}\n"
-            f"INSTALLED    {installed}\n"
-            f"PLATFORM     {platforms}\n"
-            f"FLAGS        {flag_text}\n"
-            f"RECIPES      {len(tool.recipes)}\n\n"
-            f"{tool.description or 'No description indexed.'}\n\n"
-        )
+        self.query_one("#content-description", Static).update(tool.description or "FIELD//OS indexed tool")
+        lines = [
+            f"ID          {tool.id}",
+            f"CATEGORY    {category}",
+            f"SUBCATEGORY {(tool.subcategory or 'general').upper()}",
+            f"PRIORITY    {tool.priority.upper()}",
+            f"INSTALLED   {installed}",
+            f"COMMAND     {command}",
+            f"PLATFORMS   {platforms}",
+            f"MODE        {flag_text}",
+            "",
+            f"RECIPES     {len(tool.recipes)} INDEXED",
+        ]
         if tool.recipes:
-            body += "RIGHT / ENTER // OPEN RECIPES"
+            lines.extend(["", "RIGHT / ENTER opens command recipes"])
+            first = tool.recipes[0]
+            self.set_terminal_example(first.command, f"EXAMPLE // {first.name}")
         else:
-            body += "NO RECIPES INDEXED // TOOL MANIFEST READY"
-
-        self.query_one("#content-body", OperatorPane).update(body)
+            lines.extend(["", "RIGHT / ENTER stages the base command in the terminal"])
+            if tool.command:
+                self.set_terminal_example(tool.command, "EXAMPLE // BASE COMMAND")
+        self.query_one("#content-body", OperatorPane).update("\n".join(lines))
         self.query_one("#nav-hint", Static).update(
-            "RIGHT / ENTER recipes // LEFT library"
+            "RIGHT recipes / stage command // LEFT library // CTRL+T terminal"
         )
 
     def render_recipes(self, tool: ToolRecord) -> None:
+        category = tool.category.upper()
         self.query_one("#breadcrumb", Static).update(
-            f"FIELD//OS > {tool.category.upper()} > {tool.name.upper()} > RECIPES"
+            f"FIELD//OS > {category} > {tool.name.upper()} > RECIPES"
         )
-        self.query_one("#content-title", Static).update(f"{tool.name.upper()} // RECIPES")
+        self.query_one("#content-title", Static).update(f"{tool.name.upper()} // COMMAND RECIPES")
         self.query_one("#content-description", Static).update(
-            "Operator command patterns // review targets and parameters before use"
+            "Select a recipe to stage it in the live terminal; edit before running if required."
         )
-
-        lines = [f"RECIPES      {len(tool.recipes)}", ""]
+        lines = []
         for index, recipe in enumerate(tool.recipes):
             marker = ">>" if index == self.active_recipe_index else "  "
             lines.append(f"{marker} {recipe.name}")
@@ -518,47 +590,94 @@ class FieldOSApp(App[None]):
                 if recipe.description:
                     lines.append(f"     {recipe.description}")
                 lines.append(f"     $ {recipe.command}")
+                self.set_terminal_example(recipe.command, f"EXAMPLE // {tool.name} // {recipe.name}")
             lines.append("")
-
-        lines.extend(
-            [
-                "COMMANDS ARE DISPLAYED, NOT AUTO-EXECUTED.",
-                "Validate interface, target, file paths and authorisation before running.",
-            ]
-        )
-        self.query_one("#content-body", OperatorPane).update("\n".join(lines))
+        self.query_one("#content-body", OperatorPane).update("\n".join(lines).rstrip())
         self.query_one("#nav-hint", Static).update(
-            "UP/DOWN recipe // ENTER select // LEFT tool details"
+            "UP/DOWN recipe // RIGHT / ENTER stage in terminal // LEFT tool // CTRL+T terminal"
         )
+
+    def stage_tool_command(self, tool: ToolRecord) -> None:
+        if not tool.command:
+            self.notify("NO COMMAND DEFINED", title=tool.name, timeout=1.5)
+            return
+        self.stage_command(tool.command, f"{tool.name} // BASE COMMAND")
+
+    def stage_command(self, command: str, label: str) -> None:
+        command_input = self.query_one("#command-input", Input)
+        command_input.value = command
+        command_input.cursor_position = len(command)
+        self.set_terminal_example(command, f"STAGED // {label}")
+        command_input.focus()
+        self.write_terminal(f"STAGED // {command}")
+
+    def set_terminal_example(self, command: str, label: str) -> None:
+        self.query_one("#terminal-example", Static).update(f"{label}\n$ {command}")
+
+    def write_terminal(self, text: str) -> None:
+        self.query_one("#terminal-output", RichLog).write(text)
+
+    async def run_command(self, command: str) -> None:
+        if self.command_running:
+            self.write_terminal("BUSY // another command is still running")
+            return
+        self.command_running = True
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.write_terminal(f"[{timestamp}] rvn@fieldos $ {command}")
+        try:
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            assert process.stdout is not None
+            while True:
+                raw = await process.stdout.readline()
+                if not raw:
+                    break
+                self.write_terminal(raw.decode(errors="replace").rstrip())
+            return_code = await process.wait()
+            self.write_terminal(f"[exit {return_code}] // command complete")
+        except Exception as exc:
+            self.write_terminal(f"[terminal error] {exc}")
+        finally:
+            self.command_running = False
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "command-input":
+            command = event.value.strip()
+            if not command:
+                return
+            self.command_history.append(command)
+            self.command_history_index = len(self.command_history)
+            event.input.value = ""
+            asyncio.create_task(self.run_command(command))
+            return
+
+        if event.input.id != "search":
+            return
         query = event.value.strip()
         if not query:
             self.action_dashboard()
             return
-
         matches = self.tools.search(query)
         self.query_one("#breadcrumb", Static).update("FIELD//OS > SEARCH")
         self.query_one("#content-title", Static).update(f'SEARCH // "{query.upper()}"')
         self.query_one("#content-description", Static).update(
-            f"{len(matches)} result(s) across tools and recipes"
+            f"{len(matches)} result(s) across tools, metadata and command recipes"
         )
-
         if not matches:
-            body = "NO MATCHES\n\nSearch tool names, categories, descriptions or recipe commands."
+            body = "NO MATCHES\n\nTry a tool name, category, recipe, command or subcategory."
         else:
             lines = []
-            for tool in matches[:24]:
-                state = "INSTALLED" if tool.installed else "AVAILABLE"
-                subcategory = f" // {tool.subcategory}" if tool.subcategory else ""
+            for tool in matches[:25]:
+                installed = "INSTALLED" if tool.installed else "AVAILABLE"
                 lines.append(
-                    f"> {tool.name:<22} {tool.category.upper():<10} {state:<9}"
-                    f" [{tool.priority.upper()}]{subcategory}"
+                    f"> {tool.name:<22} {tool.category.upper():<10} {installed:<9} [{tool.priority.upper()}]"
                 )
             body = "\n".join(lines)
-
         self.query_one("#content-body", OperatorPane).update(body)
-        self.query_one("#nav-hint", Static).update("ESC return dashboard // / new search")
+        self.query_one("#nav-hint", Static).update("ESC dashboard // CTRL+T terminal")
 
 
 if __name__ == "__main__":
