@@ -18,6 +18,22 @@ sources:
     priority: core
 
 tools:
+  - id: intelx
+    name: Intelligence X OSINT
+    category: blue
+    subcategory: osint-threat-intelligence
+    priority: core
+    description: Intelligence X search and data-archive client for authorised OSINT and threat-intelligence investigations. Requires an operator-supplied API key; credentials must never be committed to Project RAV3N.
+    command: intelx.py
+    offline: false
+    authorised_use_only: true
+    platforms: [linux, windows]
+    docs: https://github.com/IntelligenceX/SDK
+    recipes:
+      - name: Search selector
+        description: Search Intelligence X for an authorised selector such as a domain, email address or IP address. Review the command and provide your own API credentials through the supported Intelligence X configuration.
+        command: "intelx.py -s example.com"
+
   - id: nmap
     name: Nmap
     category: network
