@@ -16,6 +16,11 @@ sources:
     type: knowledge
     source: github.com/A-poc/RedTeam-Tools
     priority: core
+  - id: awesome-osint-arsenal
+    name: Awesome OSINT Arsenal
+    type: knowledge
+    source: github.com/rawfilejson/awesome-osint-arsenal
+    priority: core
 
 tools:
   - id: intelx
