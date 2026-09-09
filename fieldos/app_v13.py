@@ -77,7 +77,7 @@ class FieldOSApp(V12FieldOSApp):
             "ROOT@RVN-01:/FIELDOS# DASHBOARD",
             "ACCESS::OPERATOR // NODE ONLINE",
             f"{self.operations.active.name} // {self.operations.active.id}",
-            "[↑↓] NAV  [ENTER] OPEN  [/] SEARCH  [F2] SHELL  [ESC] BACK  [^Q] EXIT",
+            "UP/DN NAV  ENTER OPEN  / SEARCH  F2 SHELL  ESC BACK  ^Q EXIT",
         )
         self.focus_body()
 
@@ -88,7 +88,7 @@ class FieldOSApp(V12FieldOSApp):
             f"ROOT@RVN-01:{session.cwd}$",
             f"TTY::{session.name} // {'EXEC' if session.running else 'IDLE'}",
             f"OP::{self.operations.active.id} // COMMAND CAPTURE ACTIVE",
-            "[ENTER] EXEC  [↑↓] HISTORY  [TAB] NEXT TTY  [F6] NEW  [F8] CLEAR  [ESC] DASH",
+            "ENTER EXEC  UP/DN HISTORY  TAB NEXT TTY  F6 NEW  F8 CLEAR  ESC DASH",
         )
 
     def render_tools_home(self) -> None:
@@ -97,16 +97,16 @@ class FieldOSApp(V12FieldOSApp):
             "ROOT@RVN-01:/FIELDOS/ARSENAL#",
             "ARSENAL // MODULE INDEX",
             f"PROFILE::{self.profiles.current.name} // INSTALLED MODULES MARKED READY",
-            "[↑↓] CLASS  [ENTER] OPEN  [/] SEARCH  [ESC] DASH",
+            "UP/DN CLASS  ENTER OPEN  / SEARCH  ESC DASH",
         )
 
     def render_assets(self) -> None:
         super().render_assets()
-        self.set_header("ROOT@RVN-01:/FIELDOS/ASSETS#", "TARGET // ASSET REGISTRY", f"OP::{self.operations.active.id}", "[/] SEARCH  [ESC] DASH")
+        self.set_header("ROOT@RVN-01:/FIELDOS/ASSETS#", "TARGET // ASSET REGISTRY", f"OP::{self.operations.active.id}", "/ SEARCH  ESC DASH")
 
     def render_evidence(self) -> None:
         super().render_evidence()
-        self.set_header("ROOT@RVN-01:/FIELDOS/VAULT#", "EVIDENCE // HASH VAULT", f"OP::{self.operations.active.id} // SHA256", "[ESC] DASH")
+        self.set_header("ROOT@RVN-01:/FIELDOS/VAULT#", "EVIDENCE // HASH VAULT", f"OP::{self.operations.active.id} // SHA256", "ESC DASH")
 
     def action_back(self) -> None:
         # V1.3 contract: Esc from a primary module always returns to the dashboard.
