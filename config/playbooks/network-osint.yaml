@@ -1,0 +1,117 @@
+schema_version: 1
+
+playbooks:
+  - id: dns-triage
+    name: DNS Triage
+    category: network
+    description: Resolve and document DNS state for a known domain during troubleshooting or investigation.
+    steps:
+      - name: A record
+        tool: dig
+        command: dig <domain> A
+      - name: AAAA record
+        tool: dig
+        command: dig <domain> AAAA
+      - name: MX record
+        tool: dig
+        command: dig <domain> MX
+      - name: NS record
+        tool: dig
+        command: dig <domain> NS
+      - name: Trace delegation
+        description: Walk the public delegation chain where network access is available.
+        tool: dig
+        command: dig +trace <domain>
+      - name: Registration context
+        tool: whois
+        command: whois <domain>
+
+  - id: local-network-baseline
+    name: Local Network Baseline
+    category: network
+    description: Build a small authorised baseline of the directly connected network.
+    steps:
+      - name: Interface summary
+        tool: ip
+        command: ip -brief addr
+      - name: Route summary
+        tool: ip
+        command: ip route
+      - name: NetworkManager state
+        tool: nmcli
+        command: nmcli device status
+      - name: Local ARP discovery
+        description: Discover devices only on a network you own or are authorised to assess.
+        tool: arp-scan
+        command: sudo arp-scan --localnet
+      - name: Nmap host discovery
+        description: Confirm responding systems on the authorised subnet.
+        tool: nmap
+        command: nmap -sn <authorised-subnet>
+      - name: Record baseline
+        description: Add expected gateways, DNS servers and notable hosts to the operation.
+
+  - id: authorised-service-inventory
+    name: Authorised Service Inventory
+    category: network
+    description: Inventory exposed services on a known authorised host without exploitation.
+    steps:
+      - name: Reachability context
+        tool: mtr
+        command: mtr -rw <authorised-host>
+      - name: Common ports
+        tool: nmap
+        command: nmap --top-ports 100 <authorised-host>
+      - name: Service versions
+        tool: nmap
+        command: nmap -sV <authorised-host>
+      - name: TLS certificate
+        description: If HTTPS is present, inspect the presented certificate.
+        tool: openssl-sclient
+        command: openssl s_client -connect <authorised-host>:443 -servername <authorised-host>
+      - name: Record services
+        description: Add expected and unexpected services to the operation notes.
+
+  - id: domain-osint
+    name: Domain OSINT
+    category: osint
+    description: Public-source enrichment for an owned or explicitly authorised domain.
+    steps:
+      - name: Registration lookup
+        tool: whois
+        command: whois <authorised-domain>
+      - name: DNS records
+        tool: dig
+        command: dig <authorised-domain> ANY
+      - name: Passive subdomains
+        tool: subfinder
+        command: subfinder -d <authorised-domain> -silent
+      - name: Resolve discovered names
+        tool: dnsx
+        command: dnsx -l <domains.txt> -a -resp
+      - name: Probe known web endpoints
+        tool: httpx
+        command: httpx -l <urls.txt> -status-code -title -tech-detect
+      - name: Public footprint
+        tool: theharvester
+        command: theHarvester -d <authorised-domain> -b all
+      - name: Record selectors
+        description: Add relevant domains, hosts, IPs and URLs as operation assets.
+
+  - id: public-selector-enrichment
+    name: Public Selector Enrichment
+    category: osint
+    description: Structured public-source enrichment of a domain, email address or IP already in scope.
+    steps:
+      - name: Confirm selector and scope
+        description: Record why the selector is relevant and confirm authorised use.
+      - name: Registration lookup
+        description: Use WHOIS when the selector is a domain or IP.
+        tool: whois
+        command: whois <selector>
+      - name: Intelligence X lookup
+        description: Query Intelligence X only with operator-supplied credentials and authorised selectors.
+        tool: intelx
+        command: intelx.py -s <selector>
+      - name: Record sources
+        description: Add useful source references and derived selectors to operation notes and assets.
