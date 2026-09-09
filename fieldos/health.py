@@ -3,10 +3,11 @@ from __future__ import annotations
 import platform
 import shutil
 import sys
-from pathlib import Path
 
+from fieldos import __version__
 from fieldos.hardware.system import AutoTelemetryProvider
 from fieldos.knowledge import KnowledgeIndex
+from fieldos.operations import _data_root
 from fieldos.playbooks import PlaybookIndex
 from fieldos.tools import ToolIndex
 
@@ -19,7 +20,7 @@ def main() -> None:
     details = telemetry.details()
     current = telemetry.read()
 
-    print("RAVEN // FIELD//OS V1.0 // HEALTH CHECK")
+    print(f"RAVEN // FIELD//OS V{__version__} // HEALTH CHECK")
     print(f"Python       {sys.version.split()[0]}")
     print(f"Platform     {platform.platform()}")
     print(f"Machine      {platform.machine()}")
@@ -38,8 +39,7 @@ def main() -> None:
     for command in ("gpspipe", "meshtastic", "nmap", "tcpdump", "tshark", "rtl_433", "git"):
         print(f"{command:<12} {'READY' if shutil.which(command) else 'NOT INSTALLED'}")
 
-    data_root = Path.home() / ".fieldos"
-    print(f"\nData root    {data_root}")
+    print(f"\nData root    {_data_root()}")
     print("RESULT       FIELD//OS CORE READY")
 
 

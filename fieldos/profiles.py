@@ -20,11 +20,12 @@ class Profile:
 
 PROFILES = (
     Profile("FIELD", "General field operations", None, "NORMAL", "NORMAL"),
-    Profile("BLUE", "Defensive security and incident response", ("BLUE", "NETWORK", "FORENSICS", "FIELD", "COMMS", "HARDWARE", "RF", "UTILITIES"), "NORMAL", "NORMAL"),
-    Profile("RED", "Authorised offensive security operations", ("RED", "NETWORK", "FIELD", "COMMS", "HARDWARE", "RF", "UTILITIES"), "NORMAL", "NORMAL"),
+    Profile("BLUE", "Defensive security and incident response", ("BLUE", "OSINT", "NETWORK", "FORENSICS", "FIELD", "COMMS", "HARDWARE", "RF", "UTILITIES"), "NORMAL", "NORMAL"),
+    Profile("RED", "Authorised offensive security operations", ("RED", "OSINT", "NETWORK", "FIELD", "COMMS", "HARDWARE", "RF", "UTILITIES"), "NORMAL", "NORMAL"),
+    Profile("OSINT", "Open-source intelligence and enrichment", ("OSINT", "NETWORK", "FIELD", "UTILITIES"), "NORMAL", "NORMAL"),
     Profile("FORENSICS", "Evidence handling and offline analysis", ("FORENSICS", "BLUE", "FIELD", "HARDWARE", "UTILITIES"), "RESTRICTED", "EVIDENCE"),
     Profile("RF", "Radio-frequency observation and analysis", ("RF", "COMMS", "FIELD", "HARDWARE", "UTILITIES"), "NORMAL", "RF"),
-    Profile("AIRGAP", "Network-isolated evidence and analysis mode", ("FORENSICS", "BLUE", "FIELD", "HARDWARE", "UTILITIES"), "AIRGAP", "EVIDENCE", offline_only=True),
+    Profile("AIRGAP", "Network-isolated evidence and analysis mode", ("FORENSICS", "BLUE", "OSINT", "FIELD", "HARDWARE", "UTILITIES"), "AIRGAP", "EVIDENCE", offline_only=True),
     Profile("LOW POWER", "Reduced hardware and background activity", ("FIELD", "COMMS", "HARDWARE", "UTILITIES"), "LIMITED", "LOW_POWER", low_power=True),
 )
 
