@@ -6,6 +6,7 @@ import unittest
 
 from fieldos.hardware.system import AutoTelemetryProvider
 from fieldos.operations import OperationSessionManager
+from fieldos.playbooks import PlaybookIndex
 from fieldos.themes import THEMES, ThemeManager
 from fieldos.tools import ToolIndex
 
@@ -13,8 +14,22 @@ from fieldos.tools import ToolIndex
 class FieldOSCoreTests(unittest.TestCase):
     def test_tool_manifest_loads(self) -> None:
         tools = ToolIndex.load_default()
-        self.assertGreater(len(tools.all), 10)
+        self.assertGreater(len(tools.all), 50)
+        self.assertEqual(len({tool.id for tool in tools.all}), len(tools.all))
         self.assertTrue(tools.search("nmap"))
+        self.assertTrue(tools.search("trivy"))
+        self.assertTrue(tools.search("rtl_test"))
+        self.assertTrue(tools.search("subfinder"))
+
+    def test_playbook_manifests_load(self) -> None:
+        playbooks = PlaybookIndex.load_default()
+        self.assertGreater(len(playbooks.all), 15)
+        self.assertEqual(len({playbook.id for playbook in playbooks.all}), len(playbooks.all))
+        names = {playbook.name for playbook in playbooks.all}
+        self.assertIn("Linux IR", names)
+        self.assertIn("PCAP Triage", names)
+        self.assertIn("RVN-01 Health Check", names)
+        self.assertIn("Authorised Web Baseline", names)
 
     def test_operation_command_capture(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
