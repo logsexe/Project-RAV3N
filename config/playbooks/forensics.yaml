@@ -1,0 +1,107 @@
+schema_version: 1
+
+playbooks:
+  - id: disk-image-triage
+    name: Disk Image Triage
+    category: forensics
+    description: Read-only first-pass triage of a forensic disk image copy.
+    steps:
+      - name: Hash image
+        description: Record SHA-256 of the image copy before analysis.
+        tool: sha256sum
+        command: sha256sum <disk-image>
+      - name: Filesystem metadata
+        description: Review filesystem structure and metadata.
+        tool: sleuthkit
+        command: fsstat <disk-image>
+      - name: Recursive file listing
+        description: Enumerate filesystem entries without mounting writable.
+        tool: sleuthkit
+        command: fls -r <disk-image>
+      - name: Bulk artefact extraction
+        description: Extract common structured artefacts into a separate output directory.
+        tool: bulk-extractor
+        command: bulk_extractor -o <output-directory> <disk-image>
+      - name: Optional carving
+        description: Carve recoverable file content into a separate output directory.
+        tool: foremost
+        command: foremost -i <disk-image> -o <carve-directory>
+      - name: Record findings
+        description: Add timeline notes and preserve generated outputs as operation evidence.
+
+  - id: memory-triage
+    name: Memory Triage
+    category: forensics
+    description: Offline memory image triage with Volatility 3.
+    steps:
+      - name: Hash memory image
+        description: Record integrity before analysis.
+        tool: sha256sum
+        command: sha256sum <memory.raw>
+      - name: Process list
+        description: Enumerate processes from the memory image.
+        tool: volatility3
+        command: vol -f <memory.raw> windows.pslist
+      - name: Process tree
+        description: Review parent-child relationships.
+        tool: volatility3
+        command: vol -f <memory.raw> windows.pstree
+      - name: Network artefacts
+        description: Enumerate network endpoints found in memory.
+        tool: volatility3
+        command: vol -f <memory.raw> windows.netscan
+      - name: Command lines
+        description: Review captured process command-line arguments.
+        tool: volatility3
+        command: vol -f <memory.raw> windows.cmdline
+      - name: Record findings
+        description: Add relevant process, user and network indicators to the operation.
+
+  - id: firmware-analysis
+    name: Firmware Analysis
+    category: forensics
+    description: Static examination of firmware or embedded binary images.
+    steps:
+      - name: Hash firmware
+        description: Preserve integrity before inspection.
+        tool: sha256sum
+        command: sha256sum <firmware-image>
+      - name: Identify format
+        description: Identify container or executable type.
+        tool: file
+        command: file <firmware-image>
+      - name: Inspect signatures
+        description: Identify embedded files and compression signatures.
+        tool: binwalk
+        command: binwalk <firmware-image>
+      - name: Extract strings
+        description: Review printable content for paths, versions and configuration clues.
+        tool: strings
+        command: strings <firmware-image>
+      - name: Hex header
+        description: Inspect the first section of the image.
+        tool: xxd
+        command: xxd -l 512 <firmware-image>
+      - name: Record findings
+        description: Preserve extracted artefacts separately and add operation notes.
+
+  - id: document-metadata-triage
+    name: Document Metadata Triage
+    category: forensics
+    description: Inspect document or image metadata without opening the file in its native application.
+    steps:
+      - name: Hash artefact
+        description: Record SHA-256 integrity value.
+        tool: sha256sum
+        command: sha256sum <evidence-file>
+      - name: Identify type
+        tool: file
+        command: file <evidence-file>
+      - name: Extract metadata
+        tool: exiftool
+        command: exiftool <evidence-file>
+      - name: Extract strings
+        tool: strings
+        command: strings <evidence-file>
+      - name: Record indicators
+        description: Add relevant author, path, timestamp or application details to the operation.

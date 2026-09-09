@@ -47,36 +47,31 @@ class ToolIndex:
     @classmethod
     def load_default(cls) -> "ToolIndex":
         project_root = Path(__file__).resolve().parents[1]
-        manifest_path = project_root / "config" / "tools" / "core.yaml"
-
-        if not manifest_path.exists():
+        manifest_dir = project_root / "config" / "tools"
+        if not manifest_dir.exists():
             return cls([])
 
-        with manifest_path.open("r", encoding="utf-8") as handle:
-            payload = yaml.safe_load(handle) or {}
+        tools_by_id: dict[str, ToolRecord] = {}
+        for manifest_path in sorted(manifest_dir.glob("*.yaml")):
+            with manifest_path.open("r", encoding="utf-8") as handle:
+                payload = yaml.safe_load(handle) or {}
 
-        tools: list[ToolRecord] = []
-        for item in payload.get("tools", []):
-            recipes = tuple(
-                ToolRecipe(
-                    name=str(recipe.get("name", "Recipe")),
-                    command=str(recipe.get("command", "")),
-                    description=str(recipe.get("description", "")),
+            for item in payload.get("tools", []):
+                recipes = tuple(
+                    ToolRecipe(
+                        name=str(recipe.get("name", "Recipe")),
+                        command=str(recipe.get("command", "")),
+                        description=str(recipe.get("description", "")),
+                    )
+                    for recipe in item.get("recipes", [])
+                    if recipe.get("command")
                 )
-                for recipe in item.get("recipes", [])
-                if recipe.get("command")
-            )
-            tools.append(
-                ToolRecord(
+                record = ToolRecord(
                     id=str(item.get("id", "unknown")),
                     name=str(item.get("name", item.get("id", "UNKNOWN"))),
                     category=str(item.get("category", "utilities")).lower(),
                     priority=str(item.get("priority", "optional")),
-                    subcategory=(
-                        str(item["subcategory"])
-                        if item.get("subcategory") is not None
-                        else None
-                    ),
+                    subcategory=(str(item["subcategory"]) if item.get("subcategory") is not None else None),
                     description=str(item.get("description", "")),
                     command=(str(item["command"]) if item.get("command") else None),
                     docs=(str(item["docs"]) if item.get("docs") else None),
@@ -86,9 +81,10 @@ class ToolIndex:
                     platforms=tuple(str(value) for value in item.get("platforms", [])),
                     recipes=recipes,
                 )
-            )
+                # Later alphabetic manifests intentionally override earlier records.
+                tools_by_id[record.id] = record
 
-        return cls(tools)
+        return cls(list(tools_by_id.values()))
 
     @property
     def all(self) -> tuple[ToolRecord, ...]:
@@ -105,43 +101,18 @@ class ToolIndex:
         needle = query.lower().strip()
         if not needle:
             return []
-
         matches = []
         for tool in self._tools:
-            recipe_text = " ".join(
-                f"{recipe.name} {recipe.description} {recipe.command}"
-                for recipe in tool.recipes
-            )
-            haystack = " ".join(
-                value
-                for value in [
-                    tool.id,
-                    tool.name,
-                    tool.category,
-                    tool.subcategory or "",
-                    tool.priority,
-                    tool.description,
-                    recipe_text,
-                ]
-                if value
-            ).lower()
+            recipe_text = " ".join(f"{recipe.name} {recipe.description} {recipe.command}" for recipe in tool.recipes)
+            haystack = " ".join(value for value in [tool.id, tool.name, tool.category, tool.subcategory or "", tool.priority, tool.description, recipe_text] if value).lower()
             if needle in haystack:
                 matches.append(tool)
-
-        return sorted(
-            matches,
-            key=lambda tool: (self._priority_rank(tool.priority), tool.name.lower()),
-        )
+        return sorted(matches, key=lambda tool: (self._priority_rank(tool.priority), tool.name.lower()))
 
     def installed_count(self) -> int:
         return sum(1 for tool in self._tools if tool.installed)
 
     @staticmethod
     def _priority_rank(priority: str) -> int:
-        order = {
-            "core": 0,
-            "recommended": 1,
-            "planned": 2,
-            "optional": 3,
-        }
+        order = {"core": 0, "recommended": 1, "planned": 2, "optional": 3}
         return order.get(priority.lower(), 99)

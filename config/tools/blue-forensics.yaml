@@ -1,0 +1,192 @@
+schema_version: 2
+
+tools:
+  - id: velociraptor
+    name: Velociraptor
+    category: blue
+    subcategory: endpoint-response
+    priority: recommended
+    description: Endpoint visibility and digital forensics platform for authorised hosts.
+    command: velociraptor
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Show help
+        command: "velociraptor --help"
+
+  - id: semgrep
+    name: Semgrep
+    category: blue
+    subcategory: code-analysis
+    priority: recommended
+    description: Static analysis for source-code security review.
+    command: semgrep
+    offline: true
+    recipes:
+      - name: Local auto rules
+        command: "semgrep scan --config auto <source-directory>"
+
+  - id: trivy
+    name: Trivy
+    category: blue
+    subcategory: vulnerability-analysis
+    priority: core
+    description: Vulnerability, secret and misconfiguration scanner for filesystems and containers.
+    command: trivy
+    offline: false
+    recipes:
+      - name: Filesystem scan
+        command: "trivy fs <directory>"
+      - name: Image scan
+        command: "trivy image <image-name>"
+
+  - id: grype
+    name: Grype
+    category: blue
+    subcategory: vulnerability-analysis
+    priority: recommended
+    description: Local software package and container vulnerability scanner.
+    command: grype
+    offline: false
+    recipes:
+      - name: Scan directory
+        command: "grype dir:<directory>"
+
+  - id: syft
+    name: Syft
+    category: blue
+    subcategory: sbom
+    priority: recommended
+    description: Generate software bills of materials from filesystems and container images.
+    command: syft
+    offline: true
+    recipes:
+      - name: SBOM directory
+        command: "syft dir:<directory> -o table"
+
+  - id: lynis
+    name: Lynis
+    category: blue
+    subcategory: host-audit
+    priority: recommended
+    description: Local Linux security auditing and hardening assessment.
+    command: lynis
+    offline: true
+    requires_root: true
+    recipes:
+      - name: System audit
+        command: "sudo lynis audit system"
+
+  - id: rkhunter
+    name: rkhunter
+    category: blue
+    subcategory: host-audit
+    priority: optional
+    description: Local rootkit and suspicious file checks on Linux systems.
+    command: rkhunter
+    offline: true
+    requires_root: true
+    recipes:
+      - name: Local check
+        command: "sudo rkhunter --check --sk"
+
+  - id: ausearch
+    name: ausearch
+    category: blue
+    subcategory: linux-audit
+    priority: recommended
+    description: Query Linux auditd records during incident triage.
+    command: ausearch
+    offline: true
+    requires_root: true
+    recipes:
+      - name: Recent authentication events
+        command: "sudo ausearch -m USER_AUTH,USER_LOGIN -ts recent"
+
+  - id: journalctl
+    name: journalctl
+    category: blue
+    subcategory: linux-logs
+    priority: core
+    description: Query systemd journal logs for local incident triage.
+    command: journalctl
+    offline: true
+    recipes:
+      - name: Current boot errors
+        command: "journalctl -b -p warning"
+      - name: SSH service
+        command: "journalctl -u ssh --since today"
+
+  - id: sleuthkit
+    name: The Sleuth Kit
+    category: forensics
+    subcategory: filesystem
+    priority: core
+    description: Command-line filesystem forensics utilities for disk images.
+    command: fls
+    offline: true
+    recipes:
+      - name: List image filesystem
+        command: "fls -r <disk-image>"
+      - name: Image metadata
+        command: "fsstat <disk-image>"
+
+  - id: foremost
+    name: Foremost
+    category: forensics
+    subcategory: carving
+    priority: recommended
+    description: File carving from disk images and binary evidence.
+    command: foremost
+    offline: true
+    recipes:
+      - name: Carve image copy
+        command: "foremost -i <image-copy> -o <output-directory>"
+
+  - id: bulk-extractor
+    name: bulk_extractor
+    category: forensics
+    subcategory: artefact-extraction
+    priority: recommended
+    description: Extract structured artefacts such as URLs and email addresses from evidence images.
+    command: bulk_extractor
+    offline: true
+    recipes:
+      - name: Extract artefacts
+        command: "bulk_extractor -o <output-directory> <image-copy>"
+
+  - id: file
+    name: file
+    category: forensics
+    subcategory: triage
+    priority: core
+    description: Identify file types using signatures rather than extensions.
+    command: file
+    offline: true
+    recipes:
+      - name: Identify artefact
+        command: "file <evidence-file>"
+
+  - id: xxd
+    name: xxd
+    category: forensics
+    subcategory: hex
+    priority: core
+    description: Hex dump and binary inspection utility.
+    command: xxd
+    offline: true
+    recipes:
+      - name: First 256 bytes
+        command: "xxd -l 256 <evidence-file>"
+
+  - id: sha256sum
+    name: sha256sum
+    category: forensics
+    subcategory: integrity
+    priority: core
+    description: Generate SHA-256 hashes for evidence integrity verification.
+    command: sha256sum
+    offline: true
+    recipes:
+      - name: Hash file
+        command: "sha256sum <evidence-file>"
