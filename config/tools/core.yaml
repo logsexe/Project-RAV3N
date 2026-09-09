@@ -25,7 +25,7 @@ sources:
 tools:
   - id: intelx
     name: Intelligence X OSINT
-    category: blue
+    category: osint
     subcategory: osint-threat-intelligence
     priority: core
     description: Intelligence X search and data-archive client for authorised OSINT and threat-intelligence investigations. Requires an operator-supplied API key; credentials must never be committed to Project RAV3N.
