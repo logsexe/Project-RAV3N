@@ -5,7 +5,7 @@ from fieldos import app_v05
 if not any(name == "OSINT" for name, _ in app_v05.CATEGORIES):
     app_v05.CATEGORIES.insert(2, ("OSINT", "Open-source intelligence / enrichment"))
 
-from .app_v15 import FieldOSApp
+from .app_v15_recovery import FieldOSApp
 
 
 def main() -> None:
