@@ -1,0 +1,35 @@
+schema_version: 1
+
+playbooks:
+  - id: home-network-baseline
+    name: Home Network Baseline
+    category: network
+    description: Operator-controlled discovery and inventory workflow for a local network you own or are authorised to assess.
+    steps:
+      - name: Identify interfaces
+        description: Review RVN-01 interface addressing before selecting a subnet.
+        command: ip -br addr
+      - name: Review routes
+        description: Identify the local route and default gateway.
+        command: ip route
+      - name: Review neighbours
+        description: Inspect devices already present in the local neighbour table without starting a port scan.
+        command: ip neigh
+      - name: Discover hosts
+        description: Discover responding hosts on the local subnet after the operator verifies the authorised CIDR.
+        tool: nmap
+        command: nmap -sn <authorised-subnet>
+      - name: Inspect selected host
+        description: Identify open services and versions on one operator-selected device that is owned or authorised.
+        tool: nmap
+        command: nmap -sV <authorised-target>
+      - name: Optional OS estimate
+        description: Request Nmap OS fingerprinting for the selected authorised target. Requires elevated privileges and results are heuristic.
+        tool: nmap
+        command: sudo nmap -O <authorised-target>
+      - name: Reverse DNS
+        description: Request local reverse-DNS information for the selected host where available.
+        tool: dig
+        command: dig -x <authorised-target>
+      - name: Review findings
+        description: Review discovered IP, MAC, hostname, ports and services before recording selected results as operation assets/evidence.
