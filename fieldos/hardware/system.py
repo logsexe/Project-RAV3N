@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import shutil
@@ -135,15 +136,34 @@ class SystemTelemetryProvider:
             return "DISCONNECTED"
 
     def _gps_status(self) -> str:
+        """Report READY only when gpsd exposes a 2D/3D TPV fix.
+
+        A running gpsd daemon is not itself a location fix. gpspipe may emit
+        VERSION, DEVICES or TPV mode=1 records while no receiver has a usable
+        solution, so FIELD//OS keeps GPS degraded until TPV mode >= 2.
+        """
         if shutil.which("gpspipe"):
-            output = _run_text(["gpspipe", "-w", "-n", "1"], timeout=2.0)
-            if '"class":"TPV"' in output or '"class": "TPV"' in output:
-                return "READY"
-            if output:
+            output = _run_text(["gpspipe", "-w", "-n", "5"], timeout=2.0)
+            saw_tpv = False
+            for line in output.splitlines():
+                try:
+                    record = json.loads(line)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if record.get("class") != "TPV":
+                    continue
+                saw_tpv = True
+                try:
+                    mode = int(record.get("mode", 0))
+                except (TypeError, ValueError):
+                    mode = 0
+                if mode >= 2:
+                    return "READY"
+            if output or saw_tpv:
                 return "NO FIX"
-        if shutil.which("systemctl"):
-            if _run_text(["systemctl", "is-active", "gpsd"]) == "active":
-                return "GPSD"
+
+        if shutil.which("systemctl") and _run_text(["systemctl", "is-active", "gpsd"]) == "active":
+            return "NO FIX"
         return "NOT PRESENT"
 
     def _mesh_status(self) -> str:
