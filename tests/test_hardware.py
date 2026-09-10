@@ -71,5 +71,31 @@ class GPSDetectionTests(unittest.TestCase):
             self.assertEqual(self.provider._gps_status(), "NOT PRESENT")
 
 
+class NetworkDetectionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.provider = SystemTelemetryProvider()
+
+    def test_global_address_marks_interface_ready(self) -> None:
+        payload = '[{"ifname":"wlan0","addr_info":[{"family":"inet","local":"192.168.1.50","scope":"global"}]}]'
+        with patch("fieldos.hardware.system.shutil.which", side_effect=lambda name: "/usr/sbin/ip" if name == "ip" else None), patch(
+            "fieldos.hardware.system._run_text", return_value=payload
+        ):
+            self.assertEqual(self.provider._network_status(), "WLAN0")
+
+    def test_up_interface_without_address_is_not_ready(self) -> None:
+        payload = '[{"ifname":"wlan0","addr_info":[]}]'
+        with patch("fieldos.hardware.system.shutil.which", side_effect=lambda name: "/usr/sbin/ip" if name == "ip" else None), patch(
+            "fieldos.hardware.system._run_text", return_value=payload
+        ):
+            self.assertEqual(self.provider._network_status(), "NO ADDRESS")
+
+    def test_link_local_only_is_reported_separately(self) -> None:
+        payload = '[{"ifname":"eth0","addr_info":[{"family":"inet6","local":"fe80::1234","scope":"link"}]}]'
+        with patch("fieldos.hardware.system.shutil.which", side_effect=lambda name: "/usr/sbin/ip" if name == "ip" else None), patch(
+            "fieldos.hardware.system._run_text", return_value=payload
+        ):
+            self.assertEqual(self.provider._network_status(), "LINK LOCAL")
+
+
 if __name__ == "__main__":
     unittest.main()
