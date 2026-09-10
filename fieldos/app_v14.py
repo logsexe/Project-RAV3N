@@ -17,6 +17,20 @@ class FieldOSApp(V13FieldOSApp):
         Binding("f8", "command_center", "Command Center"),
     ]
 
+    @staticmethod
+    def _telemetry_flag(value: object) -> str:
+        degraded = {
+            "OFF",
+            "NOT PRESENT",
+            "DISCONNECTED",
+            "UNKNOWN",
+            "NO FIX",
+            "NO ADDRESS",
+            "LINK LOCAL",
+            "LINK UP",
+        }
+        return "--" if str(value).upper() in degraded else "OK"
+
     def refresh_status(self) -> None:
         t = self.telemetry_provider.read()
         a = self._airgap_state()
@@ -33,7 +47,7 @@ class FieldOSApp(V13FieldOSApp):
         t = self.telemetry_provider.read()
         warnings: list[str] = []
         if self._telemetry_flag(t.network) != "OK":
-            warnings.append("NETWORK OFFLINE")
+            warnings.append(f"NETWORK {str(t.network).upper()}")
         if self._telemetry_flag(t.gps) != "OK":
             warnings.append("GPS NO FIX")
         if self._telemetry_flag(t.mesh) != "OK":
