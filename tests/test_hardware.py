@@ -39,5 +39,37 @@ class MeshDetectionTests(unittest.TestCase):
             self.assertEqual(self.provider._mesh_status(), "NOT PRESENT")
 
 
+class GPSDetectionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.provider = SystemTelemetryProvider()
+
+    def test_3d_tpv_fix_is_ready(self) -> None:
+        payload = '{"class":"VERSION"}\n{"class":"TPV","mode":3,"lat":-27.4,"lon":153.0}'
+        with patch("fieldos.hardware.system.shutil.which", side_effect=lambda name: "/usr/bin/gpspipe" if name == "gpspipe" else None), patch(
+            "fieldos.hardware.system._run_text", return_value=payload
+        ):
+            self.assertEqual(self.provider._gps_status(), "READY")
+
+    def test_tpv_without_fix_is_no_fix(self) -> None:
+        payload = '{"class":"TPV","mode":1}'
+        with patch("fieldos.hardware.system.shutil.which", side_effect=lambda name: "/usr/bin/gpspipe" if name == "gpspipe" else None), patch(
+            "fieldos.hardware.system._run_text", return_value=payload
+        ):
+            self.assertEqual(self.provider._gps_status(), "NO FIX")
+
+    def test_active_gpsd_without_position_is_no_fix(self) -> None:
+        def which(name: str):
+            return "/usr/bin/systemctl" if name == "systemctl" else None
+
+        with patch("fieldos.hardware.system.shutil.which", side_effect=which), patch(
+            "fieldos.hardware.system._run_text", return_value="active"
+        ):
+            self.assertEqual(self.provider._gps_status(), "NO FIX")
+
+    def test_absent_gps_stack_is_not_present(self) -> None:
+        with patch("fieldos.hardware.system.shutil.which", return_value=None):
+            self.assertEqual(self.provider._gps_status(), "NOT PRESENT")
+
+
 if __name__ == "__main__":
     unittest.main()
