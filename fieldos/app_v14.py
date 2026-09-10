@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 
 from textual.binding import Binding
@@ -7,6 +8,7 @@ from textual.widgets import Static
 
 from .app_v13 import FieldOSApp as V13FieldOSApp
 from .app_v12 import NAV_ITEMS, OperatorPane
+from .hardware.mock import Telemetry
 
 
 class FieldOSApp(V13FieldOSApp):
@@ -16,6 +18,43 @@ class FieldOSApp(V13FieldOSApp):
     BINDINGS = V13FieldOSApp.BINDINGS + [
         Binding("f8", "command_center", "Command Center"),
     ]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._telemetry_snapshot = Telemetry(
+            mesh="UNKNOWN",
+            gps="UNKNOWN",
+            network="UNKNOWN",
+            cpu_temp_c=-1,
+            storage_percent=0,
+            battery_percent=-1,
+        )
+        self._telemetry_worker_active = False
+
+    def on_mount(self) -> None:
+        # Base mount renders immediately. Real RVN-01 hardware polling is kept
+        # off the Textual event loop so slow gpsd/gpspipe checks never freeze
+        # startup or keyboard navigation.
+        super().on_mount()
+        self.run_worker(self._poll_telemetry(), group="telemetry", exclusive=True)
+        self.set_interval(3.0, self._schedule_telemetry_poll)
+
+    def _schedule_telemetry_poll(self) -> None:
+        if self._telemetry_worker_active:
+            return
+        self.run_worker(self._poll_telemetry(), group="telemetry", exclusive=True)
+
+    async def _poll_telemetry(self) -> None:
+        self._telemetry_worker_active = True
+        try:
+            self._telemetry_snapshot = await asyncio.to_thread(self.telemetry_provider.read)
+        finally:
+            self._telemetry_worker_active = False
+        self.refresh_status()
+        if self.view == "home":
+            self.render_home()
+        elif self.view == "command-center":
+            self.action_command_center()
 
     @staticmethod
     def _telemetry_flag(value: object) -> str:
@@ -32,7 +71,7 @@ class FieldOSApp(V13FieldOSApp):
         return "--" if str(value).upper() in degraded else "OK"
 
     def refresh_status(self) -> None:
-        t = self.telemetry_provider.read()
+        t = self._telemetry_snapshot
         a = self._airgap_state()
         temp = "--" if t.cpu_temp_c < 0 else f"{t.cpu_temp_c:.0f}C"
         clock = datetime.now().strftime("%H:%M")
@@ -43,8 +82,8 @@ class FieldOSApp(V13FieldOSApp):
             f"MESH {self._telemetry_flag(t.mesh):<2} | {temp:<4} | {clock} "
         )
 
-    def _readiness(self) -> tuple[str, list[str]]:
-        t = self.telemetry_provider.read()
+    def _readiness(self, telemetry: Telemetry | None = None) -> tuple[str, list[str]]:
+        t = telemetry or self._telemetry_snapshot
         warnings: list[str] = []
         if self._telemetry_flag(t.network) != "OK":
             warnings.append(f"NETWORK {str(t.network).upper()}")
@@ -59,13 +98,13 @@ class FieldOSApp(V13FieldOSApp):
     def render_home(self) -> None:
         self.view = "home"
         self.hide_aux()
-        t = self.telemetry_provider.read()
+        t = self._telemetry_snapshot
         a = self._airgap_state()
         op = self.operations.active.id
         assets = len(self.intelligence.list_assets(op))
         evidence = len(self.intelligence.list_evidence(op))
         events = len(self.intelligence.timeline(op, limit=999))
-        readiness, warnings = self._readiness()
+        readiness, warnings = self._readiness(t)
         temp = "--" if t.cpu_temp_c < 0 else f"{t.cpu_temp_c:.0f}C"
 
         left = [f"{'>_' if i == self.nav_index else '  '} {name}" for i, (name, _) in enumerate(NAV_ITEMS)]
@@ -103,9 +142,9 @@ class FieldOSApp(V13FieldOSApp):
     def action_command_center(self) -> None:
         self.view = "command-center"
         self.hide_aux()
-        t = self.telemetry_provider.read()
+        t = self._telemetry_snapshot
         a = self._airgap_state()
-        readiness, warnings = self._readiness()
+        readiness, warnings = self._readiness(t)
         op = self.operations.active.id
         installed = sum(1 for tool in self.tools.all if tool.installed)
         total = len(self.tools.all)
