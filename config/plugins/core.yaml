@@ -1,0 +1,52 @@
+plugins:
+  - id: gps-tools
+    name: GPS Tools
+    category: field
+    version: "1.0"
+    platform: linux/aarch64
+    requires: [gpsd, gpspipe]
+    privilege: user
+    network: optional
+    hardware: gps
+    execution: manual
+    enabled: true
+    description: Position, fix-state and receiver diagnostics.
+
+  - id: meshtastic
+    name: Meshtastic
+    category: field
+    version: "1.0"
+    platform: linux/aarch64
+    requires: [meshtastic]
+    privilege: user
+    network: optional
+    hardware: mesh-radio
+    execution: manual
+    enabled: true
+    description: Mesh node visibility and operator-controlled messaging integration.
+
+  - id: network-diag
+    name: Network Diagnostics
+    category: network
+    version: "1.0"
+    platform: linux
+    requires: [ip]
+    privilege: user
+    network: local
+    hardware: network-interface
+    execution: manual
+    enabled: true
+    description: Local interface state and diagnostic capability integration.
+
+  - id: evidence-vault
+    name: Evidence Vault
+    category: field
+    version: "1.0"
+    platform: any
+    requires: []
+    privilege: user
+    network: none
+    hardware: none
+    execution: manual
+    enabled: true
+    description: Operation-scoped evidence metadata and integrity workflow integration.
