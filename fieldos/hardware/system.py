@@ -48,7 +48,14 @@ class SystemTelemetryProvider:
     No optional Python packages are required. On Raspberry Pi OS this reads
     sysfs and common command-line interfaces. Missing hardware is reported as
     NOT PRESENT rather than causing FIELD//OS to fail.
+
+    Mesh detection is intentionally conservative. Generic USB/ACM serial ports
+    are not treated as Meshtastic hardware because RVN-01 may also expose GPS,
+    debug adapters, microcontrollers, or other serial peripherals. An operator
+    can explicitly bind a mesh device with FIELDOS_MESH_DEVICE.
     """
+
+    MESH_DEVICE_ENV = "FIELDOS_MESH_DEVICE"
 
     def read(self) -> Telemetry:
         return Telemetry(
@@ -140,11 +147,18 @@ class SystemTelemetryProvider:
         return "NOT PRESENT"
 
     def _mesh_status(self) -> str:
+        # A working Meshtastic CLI is a strong capability signal and avoids
+        # guessing which serial peripheral belongs to the mesh subsystem.
         if shutil.which("meshtastic"):
             return "CLI READY"
-        serial_candidates = list(Path("/dev").glob("ttyACM*")) + list(Path("/dev").glob("ttyUSB*"))
-        if serial_candidates:
-            return "SERIAL"
+
+        configured = os.environ.get(self.MESH_DEVICE_ENV, "").strip()
+        if configured:
+            device = Path(configured).expanduser()
+            if device.exists():
+                return "CONFIGURED"
+            return "NOT PRESENT"
+
         return "NOT PRESENT"
 
 
