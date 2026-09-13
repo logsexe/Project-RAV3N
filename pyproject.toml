@@ -4,18 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fieldos"
-version = "1.6.0"
+version = "2.0.0"
 description = "FIELD//OS operator environment for RAVEN RVN-01"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "textual>=0.80,<2.0",
+  "PySide6>=6.8,<7.0",
   "PyYAML>=6.0,<7.0",
   "cryptography>=43,<47",
 ]
 
 [project.scripts]
-fieldos = "fieldos.__main__:main"
+fieldos = "fieldos.qt_app:main"
+fieldos-tui = "fieldos.tui_main:main"
 fieldos-check = "fieldos.health:main"
 fieldos-control = "fieldos.control:main"
 
