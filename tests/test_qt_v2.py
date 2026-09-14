@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
+from fieldos.live_services import RadioState, gpsd_fix, radio_state, system_metrics, zim_files
 from fieldos.qt_app import APPS, FieldOSWindow
 from fieldos.service_registry import SERVICES, capability_text
 
@@ -54,6 +55,13 @@ class FieldOSV2QtTests(unittest.TestCase):
         for module in {"MAP", "RADIO", "MESH", "TAK", "LIBRARY", "SYSTEM"}:
             self.assertIn(module, modules)
             self.assertTrue(capability_text(module))
+
+    def test_live_probe_functions_fail_closed(self) -> None:
+        metrics = system_metrics()
+        self.assertIn("PSUTIL", metrics)
+        self.assertIsInstance(zim_files(), tuple)
+        self.assertIsInstance(radio_state(), RadioState)
+        self.assertIn(gpsd_fix(timeout=0.01).state, {"GPSD OFFLINE", "NO DATA", "NO FIX", "FIX"})
 
     def test_about_and_contact_return_home(self) -> None:
         self.window.stack.setCurrentWidget(self.window.about)
