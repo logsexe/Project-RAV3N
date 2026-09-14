@@ -25,12 +25,19 @@ class FieldOSV2QtTests(unittest.TestCase):
         self.window.close()
         self.qt_app.processEvents()
 
-    def test_launcher_contains_nine_primary_apps(self) -> None:
-        self.assertEqual(len(APPS), 9)
-        self.assertEqual(len(self.window.buttons), 9)
+    def test_home_is_initial_surface(self) -> None:
+        self.assertIs(self.window.stack.currentWidget(), self.window.home)
+        self.window.show_launcher()
+        self.qt_app.processEvents()
         self.assertIs(self.window.stack.currentWidget(), self.window.launcher)
 
+    def test_launcher_contains_nine_primary_apps(self) -> None:
+        self.window.show_launcher()
+        self.assertEqual(len(APPS), 9)
+        self.assertEqual(len(self.window.buttons), 9)
+
     def test_every_primary_app_opens_and_returns(self) -> None:
+        self.window.show_launcher()
         for name, _ in APPS:
             with self.subTest(name=name):
                 self.window.open_app(name)
@@ -39,6 +46,14 @@ class FieldOSV2QtTests(unittest.TestCase):
                 self.window.show_launcher()
                 self.qt_app.processEvents()
                 self.assertIs(self.window.stack.currentWidget(), self.window.launcher)
+
+    def test_about_and_contact_return_home(self) -> None:
+        self.window.stack.setCurrentWidget(self.window.about)
+        self.window.show_home()
+        self.assertIs(self.window.stack.currentWidget(), self.window.home)
+        self.window.stack.setCurrentWidget(self.window.contact)
+        self.window.show_home()
+        self.assertIs(self.window.stack.currentWidget(), self.window.home)
 
     def test_window_resizes_to_target_geometry(self) -> None:
         self.window.resize(800, 480)
