@@ -8,6 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from fieldos.qt_app import APPS, FieldOSWindow
+from fieldos.service_registry import SERVICES, capability_text
 
 
 class FieldOSV2QtTests(unittest.TestCase):
@@ -31,10 +32,11 @@ class FieldOSV2QtTests(unittest.TestCase):
         self.qt_app.processEvents()
         self.assertIs(self.window.stack.currentWidget(), self.window.launcher)
 
-    def test_launcher_contains_nine_primary_apps(self) -> None:
+    def test_launcher_contains_ten_primary_apps(self) -> None:
         self.window.show_launcher()
-        self.assertEqual(len(APPS), 9)
-        self.assertEqual(len(self.window.buttons), 9)
+        self.assertEqual(len(APPS), 10)
+        self.assertEqual(len(self.window.buttons), 10)
+        self.assertIn(("TAK", "Situational awareness"), APPS)
 
     def test_every_primary_app_opens_and_returns(self) -> None:
         self.window.show_launcher()
@@ -46,6 +48,12 @@ class FieldOSV2QtTests(unittest.TestCase):
                 self.window.show_launcher()
                 self.qt_app.processEvents()
                 self.assertIs(self.window.stack.currentWidget(), self.window.launcher)
+
+    def test_service_registry_covers_external_capabilities(self) -> None:
+        modules = {service.module for service in SERVICES}
+        for module in {"MAP", "RADIO", "MESH", "TAK", "LIBRARY", "SYSTEM"}:
+            self.assertIn(module, modules)
+            self.assertTrue(capability_text(module))
 
     def test_about_and_contact_return_home(self) -> None:
         self.window.stack.setCurrentWidget(self.window.about)
