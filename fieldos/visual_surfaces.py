@@ -5,7 +5,7 @@ import random
 from collections import deque
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 GREEN = QColor("#63ff88")
@@ -16,12 +16,7 @@ BG = QColor("#020503")
 
 
 class MapCanvas(QWidget):
-    """Lightweight FIELD//OS navigation canvas.
-
-    V2.6 deliberately keeps map rendering native and dependency-free. Live GNSS
-    positions can be plotted immediately; offline tile/vector layers can be
-    added behind this canvas later without changing the operator page.
-    """
+    """FIELD//OS navigation canvas with optional offline raster background."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -31,6 +26,8 @@ class MapCanvas(QWidget):
         self.track: float | None = None
         self.fix_state = "WAITING FOR GPS"
         self.trail: deque[tuple[float, float]] = deque(maxlen=80)
+        self.map_background: QPixmap | None = None
+        self.map_label = "GRID"
 
     def set_fix(self, latitude: float | None, longitude: float | None, track: float | None, state: str) -> None:
         self.latitude, self.longitude, self.track, self.fix_state = latitude, longitude, track, state
@@ -40,17 +37,26 @@ class MapCanvas(QWidget):
                 self.trail.append(point)
         self.update()
 
+    def set_background(self, pixmap: QPixmap | None, label: str = "GRID") -> None:
+        self.map_background = pixmap
+        self.map_label = label
+        self.update()
+
     def paintEvent(self, _event) -> None:
         p = QPainter(self); p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.fillRect(self.rect(), BG)
         w, h = self.width(), self.height()
-        p.setPen(QPen(GRID, 1))
-        for x in range(0, w, 40): p.drawLine(x, 0, x, h)
-        for y in range(0, h, 40): p.drawLine(0, y, w, y)
+        if self.map_background is not None and not self.map_background.isNull():
+            p.drawPixmap(self.rect(), self.map_background)
+            p.fillRect(self.rect(), QColor(0, 10, 2, 70))
+        else:
+            p.setPen(QPen(GRID, 1))
+            for x in range(0, w, 40): p.drawLine(x, 0, x, h)
+            for y in range(0, h, 40): p.drawLine(0, y, w, y)
         p.setPen(QPen(MUTED, 1, Qt.PenStyle.DashLine)); p.drawLine(w // 2, 0, w // 2, h); p.drawLine(0, h // 2, w, h // 2)
 
         p.setFont(QFont("DejaVu Sans Mono", 9)); p.setPen(TEXT)
-        p.drawText(10, 18, "RVN-NAV // LOCAL MAP CANVAS")
+        p.drawText(10, 18, f"RVN-NAV // {self.map_label}")
         p.drawText(10, h - 10, f"GNSS::{self.fix_state}")
         p.drawText(w - 155, 18, "N")
         p.setPen(QPen(GREEN, 2)); p.drawLine(w - 150, 36, w - 150, 12); p.drawLine(w - 150, 12, w - 155, 20); p.drawLine(w - 150, 12, w - 145, 20)
@@ -77,12 +83,7 @@ class MapCanvas(QWidget):
 
 
 class SpectrumCanvas(QWidget):
-    """Native receive-only spectrum/waterfall surface for FIELD//OS.
-
-    Until a sample stream is attached, it renders a clearly labelled simulated
-    preview so layout and controls can be developed without pretending hardware
-    data is live.
-    """
+    """Native receive-only spectrum/waterfall surface for FIELD//OS."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
