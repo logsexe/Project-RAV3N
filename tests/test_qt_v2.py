@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from fieldos.qt_app import APP_SPECS, FieldOSWindow
+from fieldos.qt_app import APPS, FieldOSWindow
 
 
 class FieldOSV2QtTests(unittest.TestCase):
@@ -26,23 +26,25 @@ class FieldOSV2QtTests(unittest.TestCase):
         self.qt_app.processEvents()
 
     def test_launcher_contains_nine_primary_apps(self) -> None:
-        self.assertEqual(len(APP_SPECS), 9)
-        self.assertEqual(len(self.window.launcher.buttons), 9)
+        self.assertEqual(len(APPS), 9)
+        self.assertEqual(len(self.window.buttons), 9)
         self.assertIs(self.window.stack.currentWidget(), self.window.launcher)
 
     def test_every_primary_app_opens_and_returns(self) -> None:
-        for spec in APP_SPECS:
-            with self.subTest(app_id=spec.app_id):
-                self.window.open_app(spec.app_id)
+        for name, _ in APPS:
+            with self.subTest(name=name):
+                self.window.open_app(name)
                 self.qt_app.processEvents()
-                self.assertIs(self.window.stack.currentWidget(), self.window.pages[spec.app_id])
+                self.assertIs(self.window.stack.currentWidget(), self.window.pages[name])
                 self.window.show_launcher()
                 self.qt_app.processEvents()
                 self.assertIs(self.window.stack.currentWidget(), self.window.launcher)
 
-    def test_target_geometry_is_supported(self) -> None:
-        self.assertGreaterEqual(self.window.minimumWidth(), 800)
-        self.assertGreaterEqual(self.window.minimumHeight(), 480)
+    def test_window_resizes_to_target_geometry(self) -> None:
+        self.window.resize(800, 480)
+        self.qt_app.processEvents()
+        self.assertEqual(self.window.size().width(), 800)
+        self.assertEqual(self.window.size().height(), 480)
 
 
 if __name__ == "__main__":

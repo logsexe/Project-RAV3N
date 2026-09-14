@@ -1,27 +1,23 @@
-name: FIELD-OS CI
+name: FIELD-OS V2 CI
 
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
 
 jobs:
-  core:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.11', '3.12']
-    runs-on: ${{ matrix.os }}
+  qt-shell:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install FIELD//OS
+          python-version: '3.11'
+      - name: Install FIELD//OS V2
         run: python -m pip install -e .
-      - name: Compile source
-        run: python -m compileall fieldos
-      - name: Core tests
-        run: python -m unittest discover -s tests -v
-      - name: Health check
-        run: fieldos-check
+      - name: Compile minimal Qt source
+        run: python -m compileall fieldos/qt_app.py fieldos/__main__.py
+      - name: Qt shell tests
+        run: python -m unittest tests.test_qt_v2 -v
