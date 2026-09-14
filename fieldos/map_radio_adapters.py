@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import math
 import shutil
 import sqlite3
@@ -9,8 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QRect
-from PySide6.QtGui import QImage, QPainter, QPixmap
-
+from PySide6.QtGui import QImage, QPainter
 
 MAP_ROOTS = (
     Path.home() / "RAVEN" / "maps",
@@ -64,7 +62,8 @@ def _mercator_tile(lat: float, lon: float, zoom: int) -> tuple[float, float]:
     return x, y
 
 
-def render_mbtiles(path: Path, lat: float, lon: float, width: int, height: int, zoom: int = 14) -> QPixmap | None:
+def render_mbtiles_image(path: Path, lat: float, lon: float, width: int, height: int, zoom: int = 14) -> QImage | None:
+    """Render a centered MBTiles viewport into a worker-safe QImage."""
     if width <= 0 or height <= 0 or not path.is_file():
         return None
     center_x, center_y = _mercator_tile(lat, lon, zoom)
@@ -76,8 +75,8 @@ def render_mbtiles(path: Path, lat: float, lon: float, width: int, height: int, 
     offset_x = int(width / 2 - (center_x - first_x) * tile_size)
     offset_y = int(height / 2 - (center_y - first_y) * tile_size)
 
-    canvas = QPixmap(width, height)
-    canvas.fill()
+    canvas = QImage(width, height, QImage.Format.Format_RGB32)
+    canvas.fill(0x020503)
     painter = QPainter(canvas)
     any_tile = False
     try:
@@ -108,6 +107,7 @@ def render_mbtiles(path: Path, lat: float, lon: float, width: int, height: int, 
 
 
 def rtl_fft(center_hz: int, sample_rate: int = 2_048_000, sample_count: int = 32768) -> list[float]:
+    """Capture receive-only RTL-SDR IQ and return 256 normalized FFT bins."""
     rtl_sdr = shutil.which("rtl_sdr")
     if not rtl_sdr:
         return []
