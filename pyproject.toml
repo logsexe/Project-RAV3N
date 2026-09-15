@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fieldos"
-version = "2.7.0"
-description = "PySide6 FIELD//OS field-computer shell for RAVEN RVN-01"
+version = "2.8.0"
+description = "Graphical FIELD//OS field-computer environment for RAVEN RVN-01"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -23,7 +23,7 @@ all-python = [
 ]
 
 [project.scripts]
-fieldos = "fieldos.qt_map_radio_app:main"
+fieldos = "fieldos.qt_field_app:main"
 
 [tool.setuptools.packages.find]
 include = ["fieldos*"]
