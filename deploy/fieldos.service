@@ -1,0 +1,23 @@
+[Unit]
+Description=RAVEN FIELD//OS operator environment
+After=local-fs.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=logs
+WorkingDirectory=/home/logs/Project-RAV3N
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/logs/Project-RAV3N/.venv/bin/fieldos
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/logs/.local /home/logs/Project-RAV3N
+
+[Install]
+WantedBy=multi-user.target
