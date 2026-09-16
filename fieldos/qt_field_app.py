@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QProcess, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -14,7 +15,9 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QListWidgetItem,
     QPushButton,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +40,14 @@ FIELD_APPS = (
     ("TERMINAL", ">_", "OPERATOR SHELL"),
     ("RVN-01", "◆", "SYSTEM / HARDWARE"),
 )
+
+def _human_size(num: float) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if num < 1024:
+            return f"{num:.0f}{unit}" if unit == "B" else f"{num:.1f}{unit}"
+        num /= 1024
+    return f"{num:.1f}TB"
+
 
 V29_STYLE = STYLE + """
 QWidget#fieldLauncher { background:#030604; }
@@ -83,6 +94,15 @@ class FieldOSWindow(V29FieldOSWindow):
         self._replace_page("NETWORK", self._network_ops_page())
         self._replace_page("MESH", self._mesh_ops_page())
         self.refresh_local_state()
+
+        self.files_current_dir = Path.home()
+        self._replace_page("FILES", self._files_browser_page())
+        self._files_navigate(self.files_current_dir)
+
+        self.terminal_cwd = Path.home()
+        self.terminal_history: list[str] = []
+        self.terminal_history_index = 0
+        self._replace_page("TERMINAL", self._terminal_ops_page())
 
         old_launcher = self.launcher
         index = self.stack.indexOf(old_launcher)
@@ -307,6 +327,177 @@ class FieldOSWindow(V29FieldOSWindow):
             else:
                 self.mesh_nodes_list.addItem("NO NODES REPORTED")
 
+    def _files_browser_page(self) -> QWidget:
+        page, layout = self._shell("FILES", "Local storage // browse read-only")
+        self.files_status = QLabel()
+        self.files_status.setObjectName("body")
+        layout.addWidget(self.files_status)
+
+        self.files_path_label = QLabel()
+        self.files_path_label.setObjectName("subtitle")
+        layout.addWidget(self.files_path_label)
+
+        self.files_list = QListWidget()
+        self.files_list.itemActivated.connect(self._open_files_entry)
+        layout.addWidget(self.files_list, 1)
+
+        row = QHBoxLayout()
+        up = QPushButton("UP")
+        up.clicked.connect(self._files_go_up)
+        row.addWidget(up)
+        home = QPushButton("HOME")
+        home.clicked.connect(lambda: self._files_navigate(Path.home()))
+        row.addWidget(home)
+        op_folder = QPushButton("OPERATION FOLDER")
+        op_folder.clicked.connect(lambda: self._files_navigate(self.operations.session_path()))
+        row.addWidget(op_folder)
+        refresh = QPushButton("REFRESH")
+        refresh.clicked.connect(lambda: self._files_navigate(self.files_current_dir))
+        row.addWidget(refresh)
+        layout.addLayout(row)
+        self._back(layout)
+        return page
+
+    def _files_navigate(self, path: Path) -> None:
+        try:
+            entries = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        except OSError as exc:
+            self.footer.setText(f"RVN-01 // FILES // {type(exc).__name__} // {path}")
+            return
+        self.files_current_dir = path
+        self.files_path_label.setText(str(path))
+        self.files_list.clear()
+        for entry in entries[:300]:
+            try:
+                if entry.is_dir():
+                    label = f"[DIR]  {entry.name}"
+                else:
+                    label = f"       {entry.name}  ({_human_size(entry.stat().st_size)})"
+            except OSError:
+                continue
+            item = QListWidgetItem(label)
+            item.setData(Qt.ItemDataRole.UserRole, str(entry))
+            self.files_list.addItem(item)
+        self.footer.setText(f"RVN-01 // FILES // {len(entries)} ENTRIES // {path}")
+
+    def _open_files_entry(self, item: QListWidgetItem) -> None:
+        target = Path(item.data(Qt.ItemDataRole.UserRole))
+        if target.is_dir():
+            self._files_navigate(target)
+            return
+        try:
+            size = target.stat().st_size
+        except OSError:
+            self.footer.setText(f"RVN-01 // FILES // {target.name} // UNKNOWN SIZE")
+            return
+        self.footer.setText(f"RVN-01 // FILES // {target.name} // {_human_size(size)}")
+
+    def _files_go_up(self) -> None:
+        parent = self.files_current_dir.parent
+        if parent != self.files_current_dir:
+            self._files_navigate(parent)
+
+    def _terminal_ops_page(self) -> QWidget:
+        page, layout = self._shell("TERMINAL", "Operator-controlled local shell // captured to active operation")
+        self.terminal_output = QTextEdit()
+        self.terminal_output.setReadOnly(True)
+        self.terminal_output.setPlainText(
+            "FIELD//OS TERMINAL // READY\nCommands execute only when you press RUN. Output is captured into the active operation.\n"
+        )
+        layout.addWidget(self.terminal_output, 1)
+
+        self.terminal_cwd_label = QLabel(str(self.terminal_cwd))
+        self.terminal_cwd_label.setObjectName("subtitle")
+        layout.addWidget(self.terminal_cwd_label)
+
+        row = QHBoxLayout()
+        self.command_input = QLineEdit()
+        self.command_input.setPlaceholderText("Enter local shell command (Up/Down for history)")
+        self.command_input.returnPressed.connect(self.run_terminal_command)
+        self.command_input.installEventFilter(self)
+        row.addWidget(self.command_input, 1)
+        for text, slot in (("RUN", self.run_terminal_command), ("STOP", self.stop_terminal_command), ("CLEAR", self.terminal_output.clear)):
+            button = QPushButton(text)
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        layout.addLayout(row)
+        self._back(layout)
+        return page
+
+    def eventFilter(self, obj, event) -> bool:
+        if obj is getattr(self, "command_input", None) and event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Up:
+                self._terminal_history_step(-1)
+                return True
+            if event.key() == Qt.Key.Key_Down:
+                self._terminal_history_step(1)
+                return True
+        return super().eventFilter(obj, event)
+
+    def _terminal_history_step(self, direction: int) -> None:
+        if not self.terminal_history:
+            return
+        self.terminal_history_index = max(0, min(len(self.terminal_history) - 1, self.terminal_history_index + direction))
+        self.command_input.setText(self.terminal_history[self.terminal_history_index])
+
+    def run_terminal_command(self) -> None:
+        command = self.command_input.text().strip()
+        if not command:
+            return
+        if self.command_process and self.command_process.state() != QProcess.ProcessState.NotRunning:
+            self.terminal_output.append("BUSY // stop current command first")
+            return
+
+        self.terminal_history.append(command)
+        self.terminal_history_index = len(self.terminal_history)
+
+        if command == "cd" or command.startswith("cd "):
+            self._terminal_change_directory(command)
+            return
+
+        self.terminal_output.append(f"\nrvn@fieldos $ {command}")
+        self.command_input.clear()
+        self._terminal_command_text = command
+        self._terminal_output_chunks: list[str] = []
+        process = QProcess(self)
+        self.command_process = process
+        process.setWorkingDirectory(str(self.terminal_cwd))
+        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        process.readyReadStandardOutput.connect(self._terminal_read)
+        process.finished.connect(self._terminal_finished)
+        process.start("powershell.exe", ["-NoProfile", "-Command", command]) if sys.platform.startswith("win") else process.start("/bin/sh", ["-lc", command])
+
+    def _terminal_change_directory(self, command: str) -> None:
+        target = command[2:].strip() or str(Path.home())
+        candidate = Path(target).expanduser()
+        if not candidate.is_absolute():
+            candidate = self.terminal_cwd / candidate
+        if candidate.is_dir():
+            self.terminal_cwd = candidate.resolve()
+            self.terminal_cwd_label.setText(str(self.terminal_cwd))
+            self.terminal_output.append(f"\nrvn@fieldos $ {command}")
+        else:
+            self.terminal_output.append(f"\nrvn@fieldos $ {command}\ncd: no such directory: {target}")
+        self.command_input.clear()
+
+    def _terminal_read(self) -> None:
+        if self.command_process:
+            text = bytes(self.command_process.readAllStandardOutput()).decode(errors="replace")
+            if text:
+                self.terminal_output.insertPlainText(text)
+                self.terminal_output.ensureCursorVisible()
+                self._terminal_output_chunks.append(text)
+
+    def _terminal_finished(self, exit_code: int, _status) -> None:
+        self.terminal_output.append(f"[exit {exit_code}] // command complete")
+        output_lines = "".join(self._terminal_output_chunks).splitlines()
+        try:
+            self.operations.capture_command(self._terminal_command_text, output_lines, exit_code, "TERMINAL")
+        except OSError as exc:
+            self.footer.setText(f"RVN-01 // TERMINAL // CAPTURE FAILED // {type(exc).__name__}")
+            return
+        self.footer.setText(f"RVN-01 // TERMINAL // CAPTURED // {self.operations.active.id}")
+
     def _field_launcher(self) -> QWidget:
         page = QWidget(); page.setObjectName("fieldLauncher")
         layout = QVBoxLayout(page); layout.setContentsMargins(14, 8, 14, 8); layout.setSpacing(5)
@@ -341,6 +532,7 @@ class FieldOSWindow(V29FieldOSWindow):
         elif name in {"RADIO", "MESH", "LIBRARY"}: self.refresh_module(name)
         elif name in {"NETWORK", "RVN-01"}: self.refresh_local_state()
         elif name == "OPS": self._refresh_ops()
+        elif name == "FILES": self._files_navigate(self.files_current_dir)
         # Kick demand-driven adapters immediately on entry rather than waiting
         # for their low-frequency idle timers.
         if name == "RADIO": self.refresh_live_radio()
