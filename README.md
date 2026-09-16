@@ -2,45 +2,21 @@
 
 **Rugged Raspberry Pi 5 field computer running FIELD//OS.**
 
-RAVEN is an offline-first field-computing platform for communications, navigation, receive-only RF, local networking, offline knowledge, operations and hardware awareness.
+RAVEN is an offline-first field-computing platform combining a Pi 5 hardware build with **FIELD//OS**, a 7-inch graphical operator environment, for communications, navigation, receive-only RF, local networking, offline knowledge, operations and hardware awareness.
 
 > Development hardware. Use radio, network and security capabilities only where lawful and authorised.
 
-<!-- Concept render target: assets/rvn-01-concept.jpg -->
+## Scope
 
-## Objective
+- **Offline-first**: every feature works without Internet access; optional hardware (GPS, SDR, mesh) enhances FIELD//OS but its absence must never prevent it from starting — missing modules report `NOT PRESENT` rather than failing.
+- **Operator-focused appliance**: a single full-screen application with a fixed 9-tile home screen, not a conventional desktop.
+- **Explicit control**: radio, network and shell actions are operator-initiated, never automatic.
 
-Build a portable, self-contained field computer that remains useful without Internet access and behaves like a purpose-built appliance rather than a conventional Raspberry Pi desktop.
-
-Core objectives:
-
-- offline-first operation
-- simple operator-focused interface
-- modular hardware integration
-- graceful degradation when peripherals are unavailable
-- explicit operator control of radio, network and shell actions
-- reliable recovery through Raspberry Pi OS, SSH and local tooling
-
-## Project Scope
-
-RAVEN combines a Raspberry Pi 5 hardware platform with **FIELD//OS**, a 7-inch graphical operator environment.
-
-Current scope includes:
-
-- offline maps and GNSS
-- Meshtastic / LoRa communications
-- receive-only SDR
-- local network visibility and authorised diagnostics
-- offline knowledge and reference material
-- local files and field operations
-- terminal access
-- hardware, service and system health monitoring
-
-AI/ASSIST is currently deferred. Development priority is the offline knowledge library, hardware commissioning and subsystem integration.
+AI/ASSIST (local LLM integration) is implemented at the adapter level (`fieldos/offline_ai.py`) but not yet wired into the UI — deferred behind the offline knowledge library and hardware commissioning.
 
 ## FIELD//OS
 
-The home screen is intentionally limited to **9 primary applications**.
+The home screen is intentionally limited to **9 primary applications**:
 
 | Application | Purpose |
 | --- | --- |
@@ -54,64 +30,72 @@ The home screen is intentionally limited to **9 primary applications**.
 | **TERMINAL** | Explicit operator-controlled shell |
 | **RVN-01** | System, hardware, power and service health |
 
-Optional hardware enhances its application only. Missing GPS, SDR or mesh hardware must never prevent FIELD//OS from starting.
+### LIBRARY
 
-## LIBRARY
+Structured offline knowledge, searchable across sections: `RAVEN` · `RADIO` · `NAVIGATION` · `COMMS` · `CYBER` · `COMPUTING` · `EMERGENCY` · `MEDICAL` · `REPAIR` · `SURVIVAL` · `TRAVEL` · `GENERAL`. Supports local articles, operator-selected documentation and companion Kiwix/ZIM collections. Bootstrap supported open-source sources with `bash scripts/bootstrap-knowledge.sh` — see [Offline Knowledge Sources](docs/KNOWLEDGE-SOURCES.md).
 
-LIBRARY provides structured offline knowledge inside FIELD//OS.
+### RVN-01
 
-Current sections:
+Live system-health view: CPU/temperature/memory/storage, power and throttle state, USB and attached hardware, GPS/SDR/mesh/audio readiness, Bluetooth and network state, SSH/mDNS connectivity, and FIELD//OS service status.
 
-`RAVEN` · `RADIO` · `NAVIGATION` · `COMMS` · `CYBER` · `COMPUTING` · `EMERGENCY` · `MEDICAL` · `REPAIR` · `SURVIVAL` · `TRAVEL` · `GENERAL`
+## Quick start (development)
 
-The library supports local articles, manuals, operator-selected documentation and companion Kiwix/ZIM collections.
+Requires Python 3.11+.
 
-Bootstrap supported open-source reference sources with:
-
-```bash
-bash scripts/bootstrap-knowledge.sh
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+fieldos --windowed
 ```
 
-See [Offline Knowledge Sources](docs/KNOWLEDGE-SOURCES.md).
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+fieldos --windowed
+```
 
-## RVN-01
+Drop `--windowed` to run full-screen, as it runs on RVN-01. Run the test suite with `python -m unittest discover -s tests`.
 
-The **RVN-01** application is the system-health view for the cyberdeck.
+## RVN-01 install
 
-It is responsible for presenting:
+On Raspberry Pi OS / Debian ARM64:
 
-- CPU, temperature, memory and storage
-- power and throttle state
-- USB and attached hardware
-- GPS, SDR, mesh and audio readiness
-- Bluetooth and network state
-- SSH / mDNS connectivity
-- FIELD//OS and supporting service status
+```bash
+git clone https://github.com/logsexe/Project-RAV3N.git
+cd Project-RAV3N
+sudo bash scripts/install-rvn01.sh "$USER"
+```
+
+See [scripts/](scripts/) for appliance-mode (boot-to-FIELD//OS) install/removal and hardware-check helpers, and [deploy/](deploy/) for the corresponding systemd units.
+
+## Runtime data
+
+```text
+~/.fieldos/
+├─ state.json
+├─ exports/
+└─ sessions/<OPERATION-ID>/
+   ├─ metadata.json
+   ├─ notes/  commands/  scans/  captures/  evidence/  exports/
+```
+
+Override the root with `FIELDOS_DATA_DIR`; index local reference-repo checkouts with `FIELDOS_KNOWLEDGE_PATHS`.
 
 ## Hardware
 
-Current platform baseline:
-
-- Raspberry Pi 5 — 8 GB
-- Raspberry Pi Active Cooler
-- 7-inch 800×480 touchscreen
-- local storage
-- powered USB expansion
-- Bluetooth
-- optional GNSS
-- optional Meshtastic / LoRa
-- optional RTL-SDR
-- optional audio subsystem
+Current platform baseline: Raspberry Pi 5 (8 GB), Active Cooler, 7-inch 800×480 touchscreen, local storage, powered USB expansion, Bluetooth, and optional GNSS / Meshtastic / RTL-SDR / audio modules.
 
 See the [RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md) for the current confirmed inventory and commissioning order.
 
-## Current Focus
+## Current focus
 
-1. finish the FIELD//OS LIBRARY experience
-2. commission arriving hardware modules
-3. expand RVN-01 system-health telemetry
-4. refine appliance boot and recovery behaviour
-5. finalise the physical RVN-01 layout
+1. Finish the FIELD//OS LIBRARY experience
+2. Commission arriving hardware modules
+3. Expand RVN-01 system-health telemetry
+4. Refine appliance boot and recovery behaviour
+5. Finalise the physical RVN-01 layout
 
 ## Repository
 
@@ -133,6 +117,10 @@ tests/        automated tests
 - [Module Installation Guide](docs/MODULE-INSTALL-GUIDE.md)
 - [FIELD//OS Architecture](docs/FIELD-OS-ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
+
+## License
+
+[Apache License 2.0](LICENSE)
 
 ---
 

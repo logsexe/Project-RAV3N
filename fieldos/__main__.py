@@ -1,4 +1,4 @@
-from .qt_app import main
+from .qt_v3_health_app import main
 
 
 if __name__ == "__main__":
