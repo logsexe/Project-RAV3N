@@ -16,12 +16,13 @@ Connect to RVN-01:
 ssh logs@rvn-01.local
 ```
 
-Update to the current development branch:
+Update to the latest `main`:
 
 ```bash
 cd ~/Project-RAV3N
 git fetch origin --prune
-git switch fieldos-v3-knowledge-assist-docs || git switch --track origin/fieldos-v3-knowledge-assist-docs
+git switch main
+git pull --ff-only
 ```
 
 Run the complete read-only commissioning snapshot:
