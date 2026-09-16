@@ -125,7 +125,10 @@ class FieldOSWindow(V29FieldOSWindow):
         if old is not None:
             index = self.stack.indexOf(old)
             self.stack.removeWidget(old)
-            old.deleteLater()
+            # Keep the inherited V2 page alive. Background probes and timers in
+            # the V2.9 base class still hold references to child labels such as
+            # library_status and system_status. Deleting the page would leave
+            # those Python wrappers pointing at destroyed Qt objects.
             self.pages[name] = page
             self.stack.insertWidget(index, page)
         else:
