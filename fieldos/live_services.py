@@ -6,6 +6,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -139,12 +140,101 @@ def meshtastic_state() -> MeshState:
         return MeshState("NO DEVICE")
 
 
+# rtnetlink address scope values (include/uapi/linux/rtnetlink.h). These are
+# a stable kernel ABI, so we compare against the raw integers pyroute2 hands
+# back rather than reaching into a pyroute2 constant table for the names
+# `ip -j` prints ("global"/"link").
+_RT_SCOPE_UNIVERSE = 0
+_RT_SCOPE_LINK = 253
+
+# Neighbour-cache state bits (include/uapi/linux/neighbour.h, the NUD_*
+# flags). Also a stable kernel ABI - decoded locally for the same reason as
+# the scope values above, and named to match what `ip -j neighbour show`
+# already puts in its "state" list (e.g. ["REACHABLE"]).
+_NUD_STATE_BITS: tuple[tuple[int, str], ...] = (
+    (0x01, "INCOMPLETE"),
+    (0x02, "REACHABLE"),
+    (0x04, "STALE"),
+    (0x08, "DELAY"),
+    (0x10, "PROBE"),
+    (0x20, "FAILED"),
+    (0x40, "NOARP"),
+    (0x80, "PERMANENT"),
+)
+
+
+def _describe_neighbour_state(bitmask: int) -> str:
+    names = [name for bit, name in _NUD_STATE_BITS if bitmask & bit]
+    return " ".join(names) if names else "UNKNOWN"
+
+
+def _pyroute2_usable() -> bool:
+    return sys.platform == "linux" and importlib.util.find_spec("pyroute2") is not None
+
+
+def _pyroute2_interfaces() -> tuple[NetworkInterface, ...] | None:
+    """Enumerate up, non-loopback interfaces straight over netlink.
+
+    Same classification rules as the `ip -j` path below (GLOBAL beats LINK
+    LOCAL beats NO ADDRESS). Returns None - never an empty tuple - when
+    pyroute2 is missing or anything about the call fails, so the caller can
+    fall through to the next path instead of reporting "no interfaces" when
+    the real answer is "couldn't ask".
+    """
+    if not _pyroute2_usable():
+        return None
+    try:
+        from pyroute2 import IPRoute
+
+        with IPRoute() as ipr:
+            links = ipr.get_links()
+            addrs = ipr.get_addr()
+
+        addrs_by_index: dict[int, list] = {}
+        for addr in addrs:
+            index = addr.get("index")
+            if index is None:
+                continue
+            addrs_by_index.setdefault(index, []).append(addr)
+
+        interfaces: list[NetworkInterface] = []
+        for link in links:
+            if not (link.get("flags", 0) & 0x1):  # IFF_UP
+                continue
+            name = str(link.get_attr("IFLA_IFNAME") or "")
+            if not name or name.lower() in {"lo", "loopback"}:
+                continue
+            state, address = "NO ADDRESS", None
+            for addr in addrs_by_index.get(link.get("index"), []):
+                local = addr.get_attr("IFA_LOCAL") or addr.get_attr("IFA_ADDRESS")
+                if not local:
+                    continue
+                scope = addr.get("scope")
+                if scope == _RT_SCOPE_UNIVERSE:
+                    state, address = "GLOBAL", str(local)
+                    break
+                if scope == _RT_SCOPE_LINK and state != "GLOBAL":
+                    state, address = "LINK LOCAL", str(local)
+            interfaces.append(NetworkInterface(name.upper(), state, address))
+        return tuple(interfaces)
+    except Exception:
+        return None
+
+
 def network_interfaces() -> tuple[NetworkInterface, ...]:
     """List non-loopback interfaces with their best-known address and scope.
 
-    Read-only: this only parses `ip -j address show up`, it never configures
-    or probes beyond what the kernel already reports.
+    Tries pyroute2 first (native netlink, Linux-only): no subprocess, and no
+    dependency on a particular `ip` build actually shipping `-j` JSON support
+    (some minimal/embedded iproute2 builds don't). Falls back to parsing
+    `ip -j address show up`, and finally to bare interface names via
+    `socket.if_nameindex()` if neither works. Read-only in every path: this
+    only ever reads what the kernel already reports, never configures or
+    probes anything.
     """
+    pyroute2_result = _pyroute2_interfaces()
+    if pyroute2_result is not None:
+        return pyroute2_result
     if shutil.which("ip"):
         result = _run(["ip", "-j", "address", "show", "up"])
         if result and result.returncode == 0 and result.stdout.strip():
@@ -177,8 +267,53 @@ def network_interfaces() -> tuple[NetworkInterface, ...]:
     return tuple(NetworkInterface(name.upper(), "UNKNOWN") for name in names)
 
 
+def _pyroute2_neighbours(limit: int) -> tuple[NetworkNeighbour, ...] | None:
+    """Read the ARP/ND table straight over netlink. Passive: no probing is sent.
+
+    Returns None - never an empty tuple - when pyroute2 is missing or the
+    call fails, so the caller falls through instead of reporting "no
+    neighbours" when the real answer is "couldn't ask".
+    """
+    if not _pyroute2_usable():
+        return None
+    try:
+        from pyroute2 import IPRoute
+
+        with IPRoute() as ipr:
+            records = ipr.get_neighbours()
+            links = ipr.get_links()
+
+        names_by_index = {link.get("index"): str(link.get_attr("IFLA_IFNAME") or "") for link in links}
+
+        neighbours: list[NetworkNeighbour] = []
+        for record in records:
+            dst = record.get_attr("NDA_DST") or ""
+            if not dst:
+                continue
+            neighbours.append(
+                NetworkNeighbour(
+                    address=str(dst),
+                    device=names_by_index.get(record.get("ifindex"), ""),
+                    lladdr=record.get_attr("NDA_LLADDR"),
+                    state=_describe_neighbour_state(record.get("state", 0) or 0),
+                )
+            )
+            if len(neighbours) >= limit:
+                break
+        return tuple(neighbours)
+    except Exception:
+        return None
+
+
 def network_neighbours(limit: int = 25) -> tuple[NetworkNeighbour, ...]:
-    """List the local ARP/ND neighbour table. Passive: no probing is sent."""
+    """List the local ARP/ND neighbour table. Passive: no probing is sent.
+
+    Tries pyroute2 first (native netlink, Linux-only), falling back to
+    parsing `ip -j neighbour show`. See network_interfaces() for why.
+    """
+    pyroute2_result = _pyroute2_neighbours(limit)
+    if pyroute2_result is not None:
+        return pyroute2_result
     if not shutil.which("ip"):
         return ()
     result = _run(["ip", "-j", "neighbour", "show"])
