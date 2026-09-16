@@ -312,11 +312,16 @@ class FieldOSWindow(V29FieldOSWindow):
         if row < 0 or row >= len(self.knowledge_entries):
             return
         entry = self.knowledge_entries[row]
+        # ZIM-backed entries carry no body until opened -- fetch it now via
+        # KnowledgeIndex.body_for(), which reads it out of the .zim archive
+        # (and caches it) on this first access rather than at index time.
+        body = self.knowledge.body_for(entry) if self.knowledge is not None else entry.body
+        archive = f"\nARCHIVE    {entry.source} // {entry.zim_entry_path}" if entry.zim_source else ""
         path = f"\nPATH       {entry.path}" if entry.path else ""
         command = f"\nCOMMAND    {entry.command}" if entry.command else ""
         self.library_detail.setPlainText(
-            f"{entry.title}\n\nCATEGORY   {entry.category.upper()}\nSOURCE     {entry.source}{path}{command}\n\n"
-            f"{entry.summary}\n\n{entry.body}"
+            f"{entry.title}\n\nCATEGORY   {entry.category.upper()}\nSOURCE     {entry.source}{path}{archive}{command}\n\n"
+            f"{entry.summary}\n\n{body}"
         )
 
     def _refresh_health(self) -> None:
