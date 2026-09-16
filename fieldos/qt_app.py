@@ -298,6 +298,12 @@ class FieldOSWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def closeEvent(self, event) -> None:
+        # Every subclass adds its own QTimer(self) (radio_timer, v3_timer,
+        # rvn_timer, ...); stop them all rather than naming each one here, so
+        # none of them fire again and try to submit work to the executor
+        # after it's shut down on the next line.
+        for timer in self.findChildren(QTimer):
+            timer.stop()
         self.executor.shutdown(wait=False, cancel_futures=True)
         super().closeEvent(event)
 

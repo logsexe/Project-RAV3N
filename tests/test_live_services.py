@@ -80,7 +80,7 @@ class MeshtasticNodesTests(unittest.TestCase):
             self.assertEqual(meshtastic_nodes(), ())
 
     def test_serial_interface_unavailable_fails_closed(self) -> None:
-        with patch("fieldos.live_services._meshtastic_serial_interface", return_value=None):
+        with patch("fieldos.live_services.open_meshtastic_interface", return_value=None):
             self.assertEqual(meshtastic_nodes(), ())
 
     def test_close_failure_does_not_propagate(self) -> None:
@@ -90,7 +90,7 @@ class MeshtasticNodesTests(unittest.TestCase):
             def close(self) -> None:
                 raise AttributeError("stream")
 
-        with patch("fieldos.live_services._meshtastic_serial_interface", return_value=BrokenInterface()):
+        with patch("fieldos.live_services.open_meshtastic_interface", return_value=BrokenInterface()):
             result = meshtastic_nodes()
         self.assertEqual(result, (MeshNode("!abc123", "Base Camp", "1234"),))
 

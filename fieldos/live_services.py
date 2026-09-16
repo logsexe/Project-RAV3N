@@ -207,7 +207,13 @@ def network_neighbours(limit: int = 25) -> tuple[NetworkNeighbour, ...]:
     return tuple(neighbours)
 
 
-def _meshtastic_serial_interface():
+def open_meshtastic_interface():
+    """Open a Meshtastic serial connection, or None if unavailable.
+
+    Used both for a single probe (meshtastic_nodes(), which closes it
+    straight away) and to hand back a persistent connection a caller keeps
+    open across a session (see qt_field_app.py's MESH CONNECT action).
+    """
     if importlib.util.find_spec("meshtastic") is None:
         return None
     candidates: list[str] = []
@@ -226,7 +232,7 @@ def _meshtastic_serial_interface():
 
 def meshtastic_nodes() -> tuple[MeshNode, ...]:
     """List known Meshtastic nodes. Read-only: never transmits."""
-    interface = _meshtastic_serial_interface()
+    interface = open_meshtastic_interface()
     if interface is None:
         return ()
     try:

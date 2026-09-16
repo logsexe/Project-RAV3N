@@ -7,6 +7,9 @@ import math
 from pathlib import Path
 import sqlite3
 
+import gpxpy
+import gpxpy.gpx
+
 from fieldos.operations import _data_root
 
 
@@ -75,6 +78,40 @@ class OfflineMapStore:
 
     def waypoints(self) -> list[Waypoint]:
         return self._load(self.waypoints_path, Waypoint)
+
+    def export_gpx(self, path: Path | None = None) -> Path:
+        """Export every waypoint as a GPX 1.1 file, readable by QMapShack, Garmin units, OsmAnd, etc."""
+        gpx = gpxpy.gpx.GPX()
+        for item in self.waypoints():
+            try:
+                time = datetime.fromisoformat(item.created_at)
+            except ValueError:
+                time = None
+            gpx.waypoints.append(
+                gpxpy.gpx.GPXWaypoint(
+                    latitude=item.latitude,
+                    longitude=item.longitude,
+                    name=item.label,
+                    time=time,
+                    comment=item.id,
+                )
+            )
+        destination = path or (self.root / "exports" / f"waypoints-{datetime.now():%Y%m%d-%H%M%S}.gpx")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(gpx.to_xml(), encoding="utf-8")
+        return destination
+
+    def import_gpx(self, path: Path, operation_id: str = "") -> list[Waypoint]:
+        """Import waypoints from a GPX file's top-level <wpt> entries.
+
+        Points nested under routes or tracks are not imported; a GPX file
+        exported by export_gpx() only ever has top-level waypoints anyway.
+        """
+        gpx = gpxpy.parse(Path(path).read_text(encoding="utf-8"))
+        imported: list[Waypoint] = []
+        for point in gpx.waypoints:
+            imported.append(self.add_waypoint(point.latitude, point.longitude, point.name or "WAYPOINT", operation_id))
+        return imported
 
     def upsert_mesh_node(self, node_id: str, latitude: float, longitude: float, label: str = "") -> MeshNode:
         items = {item.id: item for item in self.mesh_nodes()}

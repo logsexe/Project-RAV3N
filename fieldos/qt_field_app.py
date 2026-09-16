@@ -5,10 +5,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QProcess, Qt
+from PySide6.QtCore import QEvent, QProcess, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QFileDialog,
     QGridLayout,
     QHBoxLayout,
     QInputDialog,
@@ -23,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from .engine import OperationsEngine
-from .live_services import meshtastic_nodes, network_interfaces, network_neighbours
+from .live_services import meshtastic_nodes, network_interfaces, network_neighbours, open_meshtastic_interface
 from .maps import OfflineMapStore, Waypoint, bearing_distance
 from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
@@ -74,7 +75,18 @@ QPushButton#appCard:pressed { background:#14331d; }
 class FieldOSWindow(V29FieldOSWindow):
     """FIELD//OS V2.9 — efficient graphical RVN-01 field computer."""
 
+    # Meshtastic's pubsub callback fires on the interface's own reader
+    # thread. Qt signals are the safe way to cross into the UI thread: emit()
+    # is thread-safe, and the connected slot below runs queued on the main
+    # thread regardless of which thread emitted it.
+    mesh_message_received = Signal(str, str, str)
+
     def __init__(self) -> None:
+        # Set before super().__init__(): the base class's own __init__ calls
+        # refresh_services() -> refresh_module("MESH") during its own
+        # construction, and since `self` is this most-derived class, that
+        # resolves to this class's override, which checks self.mesh_interface.
+        self.mesh_interface = None
         super().__init__()
         self.setWindowTitle("RAVEN // FIELD//OS V2.9")
         self.pages["RVN-01"] = self.pages["SYSTEM"]
@@ -99,6 +111,7 @@ class FieldOSWindow(V29FieldOSWindow):
         self._refresh_waypoints()
 
         self._replace_page("NETWORK", self._network_ops_page())
+        self.mesh_message_received.connect(self._on_mesh_message)
         self._replace_page("MESH", self._mesh_ops_page())
         self.refresh_local_state()
 
@@ -300,20 +313,152 @@ class FieldOSWindow(V29FieldOSWindow):
         self.mesh_status.setObjectName("body")
         layout.addWidget(self.mesh_status)
 
-        layout.addWidget(QLabel("NODES"))
+        body = QHBoxLayout()
+        left = QVBoxLayout()
+        left.addWidget(QLabel("NODES"))
         self.mesh_nodes_list = QListWidget()
-        layout.addWidget(self.mesh_nodes_list, 1)
+        left.addWidget(self.mesh_nodes_list, 1)
+        body.addLayout(left, 1)
 
+        right = QVBoxLayout()
+        right.addWidget(QLabel("MESSAGES"))
+        self.mesh_messages_list = QListWidget()
+        right.addWidget(self.mesh_messages_list, 1)
+        body.addLayout(right, 1)
+        layout.addLayout(body, 1)
+
+        connect_row = QHBoxLayout()
+        self.mesh_connect_button = QPushButton("CONNECT")
+        self.mesh_connect_button.clicked.connect(self._toggle_mesh_connection)
+        connect_row.addWidget(self.mesh_connect_button)
         refresh = QPushButton("REFRESH")
         refresh.clicked.connect(lambda: self.refresh_module("MESH"))
-        layout.addWidget(refresh)
+        connect_row.addWidget(refresh)
+        layout.addLayout(connect_row)
+
+        message_row = QHBoxLayout()
+        self.mesh_message_input = QLineEdit()
+        self.mesh_message_input.setPlaceholderText("Broadcast text — CONNECT first")
+        self.mesh_message_input.returnPressed.connect(self._send_mesh_message)
+        message_row.addWidget(self.mesh_message_input, 1)
+        send = QPushButton("SEND")
+        send.clicked.connect(self._send_mesh_message)
+        message_row.addWidget(send)
+        layout.addLayout(message_row)
+
         self._back(layout)
         return page
 
     def refresh_module(self, module: str) -> None:
+        if module == "MESH" and self.mesh_interface is not None:
+            self._refresh_mesh_from_persistent()
+            return
         super().refresh_module(module)
         if module == "MESH":
             self._submit("MESHNODES", meshtastic_nodes)
+
+    def _refresh_mesh_from_persistent(self) -> None:
+        """Read node state from the already-open connection instead of
+        opening a second, competing one on the same serial port."""
+        nodes = getattr(self.mesh_interface, "nodes", {}) or {}
+        self.mesh_status.setText(
+            f"LINK        CONNECTED (PERSISTENT)\nNODES       {len(nodes)}\nTX          EXPLICIT OPERATOR ACTION"
+        )
+        self.mesh_nodes_list.clear()
+        if not nodes:
+            self.mesh_nodes_list.addItem("NO NODES REPORTED")
+            return
+        for node_id, info in nodes.items():
+            info = info if isinstance(info, dict) else {}
+            user = info.get("user", {}) if isinstance(info.get("user"), dict) else {}
+            name = user.get("longName") or user.get("shortName") or str(node_id)
+            last_heard = info.get("lastHeard")
+            self.mesh_nodes_list.addItem(f"{name:<20} {node_id:<12} LAST {last_heard or '--'}")
+
+    def _toggle_mesh_connection(self) -> None:
+        if self.mesh_interface is not None:
+            self._disconnect_mesh()
+            return
+        self.mesh_connect_button.setEnabled(False)
+        self.mesh_status.setText("LINK        CONNECTING...")
+        self._submit("MESHCONNECT", open_meshtastic_interface)
+
+    def _disconnect_mesh(self) -> None:
+        if self.mesh_interface is None:
+            return
+        try:
+            from pubsub import pub
+            pub.unsubscribe(self._mesh_pubsub_callback, "meshtastic.receive")
+        except Exception:
+            pass
+        try:
+            self.mesh_interface.close()
+        except Exception:
+            pass
+        self.mesh_interface = None
+        self.mesh_connect_button.setText("CONNECT")
+        self.mesh_status.setText("LINK        DISCONNECTED")
+        self.footer.setText("RVN-01 // MESH // DISCONNECTED")
+
+    def _mesh_pubsub_callback(self, packet=None, interface=None) -> None:
+        """Runs on Meshtastic's reader thread. No Qt widget access here —
+        only emit(), which is safe to call from any thread."""
+        try:
+            decoded = packet.get("decoded", {}) if isinstance(packet, dict) else {}
+            if decoded.get("portnum") != "TEXT_MESSAGE_APP":
+                return
+            text = decoded.get("text") or ""
+            sender_key = packet.get("fromId") or packet.get("from")
+            sender_id = str(sender_key if sender_key is not None else "UNKNOWN")
+            sender_name = sender_id
+            nodes = getattr(interface, "nodes", {}) or {}
+            info = nodes.get(sender_key) or nodes.get(sender_id)
+            if isinstance(info, dict):
+                user = info.get("user", {}) if isinstance(info.get("user"), dict) else {}
+                sender_name = user.get("longName") or user.get("shortName") or sender_id
+            self.mesh_message_received.emit(sender_id, sender_name, text)
+        except Exception:
+            pass
+
+    def _on_mesh_message(self, sender_id: str, sender_name: str, text: str) -> None:
+        stamp = datetime.now().strftime("%H:%M:%S")
+        self.mesh_messages_list.addItem(f"[{stamp}] {sender_name}: {text}")
+        self.footer.setText(f"RVN-01 // MESH // MESSAGE FROM {sender_name}")
+        try:
+            self.ops_engine.record_event(
+                self.operations.active.id, "MESH-RX", f"{sender_name}: {text}", metadata={"sender_id": sender_id}
+            )
+        except Exception:
+            pass
+
+    def _send_mesh_message(self) -> None:
+        text = self.mesh_message_input.text().strip()
+        if not text:
+            return
+        if self.mesh_interface is None:
+            self.footer.setText("RVN-01 // MESH // NOT CONNECTED // PRESS CONNECT FIRST")
+            return
+        try:
+            self.mesh_interface.sendText(text)
+        except Exception as exc:
+            self.footer.setText(f"RVN-01 // MESH // SEND FAILED // {type(exc).__name__}")
+            return
+        stamp = datetime.now().strftime("%H:%M:%S")
+        self.mesh_messages_list.addItem(f"[{stamp}] YOU: {text}")
+        self.mesh_message_input.clear()
+        self.footer.setText("RVN-01 // MESH // MESSAGE SENT")
+        try:
+            self.ops_engine.record_event(self.operations.active.id, "MESH-TX", text, metadata={})
+        except Exception:
+            pass
+
+    def closeEvent(self, event) -> None:
+        if self.mesh_interface is not None:
+            try:
+                self.mesh_interface.close()
+            except Exception:
+                pass
+        super().closeEvent(event)
 
     def _collect_futures(self) -> None:
         mesh_nodes_future = self.futures.get("MESHNODES")
@@ -323,7 +468,18 @@ class FieldOSWindow(V29FieldOSWindow):
                 mesh_nodes_value = mesh_nodes_future.result()
             except Exception:
                 mesh_nodes_value = ()
+
+        mesh_connect_future = self.futures.get("MESHCONNECT")
+        mesh_connect_done = mesh_connect_future is not None and mesh_connect_future.done()
+        mesh_connect_result = None
+        if mesh_connect_done:
+            try:
+                mesh_connect_result = mesh_connect_future.result()
+            except Exception:
+                mesh_connect_result = None
+
         super()._collect_futures()
+
         if mesh_nodes_value is not None:
             self.mesh_nodes_list.clear()
             if mesh_nodes_value:
@@ -332,6 +488,22 @@ class FieldOSWindow(V29FieldOSWindow):
                     self.mesh_nodes_list.addItem(f"{node.name:<20} {node.id:<12} LAST {last_heard}")
             else:
                 self.mesh_nodes_list.addItem("NO NODES REPORTED")
+
+        if mesh_connect_done:
+            self.mesh_connect_button.setEnabled(True)
+            if mesh_connect_result is not None:
+                self.mesh_interface = mesh_connect_result
+                try:
+                    from pubsub import pub
+                    pub.subscribe(self._mesh_pubsub_callback, "meshtastic.receive")
+                except Exception:
+                    pass
+                self.mesh_connect_button.setText("DISCONNECT")
+                self._refresh_mesh_from_persistent()
+                self.footer.setText("RVN-01 // MESH // CONNECTED")
+            else:
+                self.mesh_status.setText("LINK        CONNECT FAILED // NO DEVICE")
+                self.footer.setText("RVN-01 // MESH // CONNECT FAILED")
 
     def _navigation_page(self) -> QWidget:
         page, layout = self._shell("NAVIGATION", "Offline map // live GNSS overlay // waypoints")
@@ -362,6 +534,16 @@ class FieldOSWindow(V29FieldOSWindow):
         companion.clicked.connect(lambda: self.launch_first_service("MAP"))
         row.addWidget(companion)
         layout.addLayout(row)
+
+        gpx_row = QHBoxLayout()
+        export_gpx = QPushButton("EXPORT GPX")
+        export_gpx.clicked.connect(self._export_waypoints_gpx)
+        gpx_row.addWidget(export_gpx)
+        import_gpx = QPushButton("IMPORT GPX")
+        import_gpx.clicked.connect(self._import_waypoints_gpx)
+        gpx_row.addWidget(import_gpx)
+        layout.addLayout(gpx_row)
+
         self._back(layout)
         return page
 
@@ -407,6 +589,36 @@ class FieldOSWindow(V29FieldOSWindow):
         )
         self._refresh_waypoints()
         self.footer.setText(f"RVN-01 // NAVIGATION // WAYPOINT {item.id} ADDED")
+
+    def _export_waypoints_gpx(self) -> None:
+        if not self._waypoints_cache:
+            self.footer.setText("RVN-01 // NAVIGATION // NO WAYPOINTS TO EXPORT")
+            return
+        try:
+            archive = self.map_store.export_gpx()
+        except OSError as exc:
+            self.footer.setText(f"RVN-01 // NAVIGATION // GPX EXPORT FAILED // {type(exc).__name__}")
+            return
+        self.footer.setText(f"RVN-01 // NAVIGATION // GPX EXPORTED // {archive.name}")
+
+    def _import_waypoints_gpx(self) -> None:
+        path, _filter = QFileDialog.getOpenFileName(self, "IMPORT GPX", str(Path.home()), "GPX files (*.gpx)")
+        if not path:
+            return
+        try:
+            imported = self.map_store.import_gpx(Path(path), self.operations.active.id)
+        except Exception as exc:
+            self.footer.setText(f"RVN-01 // NAVIGATION // GPX IMPORT FAILED // {type(exc).__name__}")
+            return
+        for item in imported:
+            self.ops_engine.record_event(
+                self.operations.active.id,
+                "WAYPOINT",
+                f"{item.id} {item.label}",
+                metadata={"lat": item.latitude, "lon": item.longitude, "source": "gpx-import"},
+            )
+        self._refresh_waypoints()
+        self.footer.setText(f"RVN-01 // NAVIGATION // IMPORTED {len(imported)} WAYPOINT(S) FROM GPX")
 
     def _files_browser_page(self) -> QWidget:
         page, layout = self._shell("FILES", "Local storage // browse read-only")
