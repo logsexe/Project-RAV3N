@@ -1,0 +1,113 @@
+schema_version: 1
+sources:
+  - id: kiwix-core
+    title: Kiwix Offline Catalog
+    category: general
+    priority: must-have
+    source_type: zim-catalog
+    url: https://library.kiwix.org/
+    offline_strategy: Download selected ZIM files with Kiwix; do not commit large ZIM files to this repository.
+    notes: Prioritise Wikipedia, Wikivoyage, Wiktionary and repair/education collections that are useful offline.
+
+  - id: raspberrypi-docs
+    title: Official Raspberry Pi Documentation
+    category: raven
+    priority: must-have
+    source_type: git
+    url: https://github.com/raspberrypi/documentation
+    offline_strategy: Clone locally into the RVN-01 knowledge tree and index the documentation directory.
+    licence: CC-BY-SA-4.0 for documentation
+
+  - id: meshtastic-docs
+    title: Meshtastic Documentation
+    category: communications
+    priority: must-have
+    source_type: git
+    url: https://github.com/meshtastic/meshtastic
+    offline_strategy: Clone locally and index docs/ for configuration, flashing and radio guidance.
+    notes: Keep antenna attached before powering LoRa hardware and verify regional settings before transmitting.
+
+  - id: meshtastic-firmware
+    title: Meshtastic Firmware Reference
+    category: communications
+    priority: useful
+    source_type: git
+    url: https://github.com/meshtastic/firmware
+    offline_strategy: Optional local clone for device support, firmware notes and hardware troubleshooting.
+    licence: GPL-3.0
+
+  - id: gpsd-docs
+    title: gpsd Documentation
+    category: navigation
+    priority: must-have
+    source_type: web-manual
+    url: https://gpsd.io/
+    offline_strategy: Save the relevant gpsd manual pages locally or install gpsd-doc so man pages remain available offline.
+
+  - id: gnu-coreutils
+    title: GNU Coreutils Manual
+    category: computing
+    priority: useful
+    source_type: web-manual
+    url: https://www.gnu.org/software/coreutils/manual/
+    offline_strategy: Download the official HTML, text or PDF manual for local reference.
+
+  - id: mitre-attack-stix
+    title: MITRE ATT&CK STIX Data
+    category: cybersecurity
+    priority: must-have
+    source_type: git
+    url: https://github.com/mitre-attack/attack-stix-data
+    offline_strategy: Clone locally; index human-readable metadata and retain STIX JSON for structured lookup.
+    notes: Preserve MITRE copyright and licence text with local copies.
+
+  - id: nist-csf-2
+    title: NIST Cybersecurity Framework 2.0
+    category: cybersecurity
+    priority: useful
+    source_type: pdf
+    url: https://www.nist.gov/publications/nist-cybersecurity-framework-csf-20
+    offline_strategy: Download the official NIST PDF into the cybersecurity reference folder.
+
+  - id: nist-ir-800-61r3
+    title: NIST SP 800-61r3 Incident Response
+    category: cybersecurity
+    priority: must-have
+    source_type: pdf
+    url: https://csrc.nist.gov/pubs/sp/800/61/r3/final
+    offline_strategy: Download the final publication for incident-response reference.
+
+  - id: acma-spectrum-plan
+    title: Australian Radiofrequency Spectrum Plan
+    category: radio
+    priority: must-have
+    source_type: pdf
+    url: https://www.acma.gov.au/australian-radiofrequency-spectrum-plan
+    offline_strategy: Download the current official PDF and refresh it when ACMA publishes a revision.
+    notes: Regulatory reference; do not treat an old local copy as current law without checking its revision date.
+
+  - id: wia-band-plan
+    title: WIA Australian Amateur Radio Band Plan
+    category: radio
+    priority: must-have
+    source_type: pdf
+    url: https://www.wia.org.au/members/bandplans/data/
+    offline_strategy: Download the current band-plan PDF and posters into the radio reference folder.
+    notes: Current source page provides the 2026 Australian band plan.
+
+  - id: redcross-rediplan
+    title: Australian Red Cross RediPlan
+    category: emergency
+    priority: useful
+    source_type: pdf
+    url: https://www.redcross.org.au/emergencies/prepare/resources/
+    offline_strategy: Download the current preparedness guide and emergency-kit checklist for personal offline use.
+
+  - id: stjohn-first-aid
+    title: St John Ambulance Australia First Aid Facts
+    category: medical
+    priority: useful
+    source_type: personal-download
+    url: https://www.stjohn.org.au/first-aid-facts
+    offline_strategy: Operator may download current fact sheets for personal use; do not bundle or redistribute them in Project RAV3N.
+    notes: St John states its fact sheets are personal-use material and should not substitute for first-aid training; refresh periodically.
