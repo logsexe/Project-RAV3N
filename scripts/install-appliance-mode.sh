@@ -18,23 +18,27 @@ mkdir -p /home/logs/.fieldos
 chown logs:logs /home/logs/.fieldos
 
 # Conservative debloat: keep Bluetooth, NetworkManager, SSH, AppArmor,
-# audio and the graphical stack. Remove first-boot cloud provisioning and
-# mDNS/VNC helpers from the steady-state appliance boot path.
+# Avahi/mDNS, audio and the graphical stack. Remove only first-boot cloud
+# provisioning and the optional VNC control helper from the steady-state path.
 for unit in \
   cloud-config.service cloud-final.service cloud-init-local.service \
-  cloud-init-main.service cloud-init-network.service avahi-daemon.service \
+  cloud-init-main.service cloud-init-network.service \
   wayvnc-control.service; do
   systemctl disable --now "$unit" 2>/dev/null || true
 done
 
-# Bluetooth is an explicit RVN-01 capability and must remain enabled.
-systemctl enable bluetooth.service 2>/dev/null || true
+# Explicitly preserve capabilities required for a headless RVN-01 workflow.
+systemctl enable --now bluetooth.service 2>/dev/null || true
+systemctl enable --now avahi-daemon.service 2>/dev/null || true
+systemctl enable --now ssh.service 2>/dev/null || true
 
 systemctl daemon-reload
 systemctl enable fieldos-appliance.service
 
 echo 'FIELD//OS appliance mode installed.'
 echo 'Bluetooth: retained/enabled.'
-echo 'NetworkManager + SSH + AppArmor: untouched.'
+echo 'Avahi/mDNS: retained/enabled for rvn-01.local access.'
+echo 'SSH: retained/enabled.'
+echo 'NetworkManager + AppArmor: untouched.'
 echo 'LightDM/desktop: retained for the first appliance validation pass.'
 echo 'Reboot only when ready: sudo reboot'
