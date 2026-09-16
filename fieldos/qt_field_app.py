@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from .engine import OperationsEngine
+from .live_services import meshtastic_nodes, network_interfaces, network_neighbours
 from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
 from .qt_app import STYLE, _display_summary
@@ -78,6 +79,10 @@ class FieldOSWindow(V29FieldOSWindow):
         self.pages["OPS"] = ops_page
         self._populate_operations()
         self._refresh_ops()
+
+        self._replace_page("NETWORK", self._network_ops_page())
+        self._replace_page("MESH", self._mesh_ops_page())
+        self.refresh_local_state()
 
         old_launcher = self.launcher
         index = self.stack.indexOf(old_launcher)
@@ -214,6 +219,93 @@ class FieldOSWindow(V29FieldOSWindow):
         self.ops_assets.clear()
         for asset in assets:
             self.ops_assets.addItem(f"[{asset.kind}] {asset.label}")
+
+    def _network_ops_page(self) -> QWidget:
+        page, layout = self._shell("NETWORK", "Local interfaces // neighbours // authorised diagnostics")
+        self.network_status = QLabel("HOST        PROBING")
+        self.network_status.setObjectName("body")
+        layout.addWidget(self.network_status)
+
+        body = QHBoxLayout()
+        left = QVBoxLayout()
+        left.addWidget(QLabel("INTERFACES"))
+        self.network_interfaces_list = QListWidget()
+        left.addWidget(self.network_interfaces_list, 1)
+        body.addLayout(left, 1)
+
+        right = QVBoxLayout()
+        right.addWidget(QLabel("NEIGHBOURS (ARP/ND)"))
+        self.network_neighbours_list = QListWidget()
+        right.addWidget(self.network_neighbours_list, 1)
+        body.addLayout(right, 1)
+        layout.addLayout(body, 1)
+
+        refresh = QPushButton("REFRESH LOCAL STATE")
+        refresh.clicked.connect(self.refresh_local_state)
+        layout.addWidget(refresh)
+        self._back(layout)
+        return page
+
+    def refresh_local_state(self) -> None:
+        super().refresh_local_state()
+        if hasattr(self, "network_interfaces_list"):
+            self._refresh_network_details()
+
+    def _refresh_network_details(self) -> None:
+        self.network_interfaces_list.clear()
+        interfaces = network_interfaces()
+        if not interfaces:
+            self.network_interfaces_list.addItem("NO INTERFACES REPORTED")
+        for iface in interfaces:
+            address = iface.address or "--"
+            self.network_interfaces_list.addItem(f"{iface.name:<10} {iface.state:<12} {address}")
+
+        self.network_neighbours_list.clear()
+        neighbours = network_neighbours()
+        if not neighbours:
+            self.network_neighbours_list.addItem("NO NEIGHBOURS REPORTED")
+        for neighbour in neighbours:
+            lladdr = neighbour.lladdr or "--"
+            self.network_neighbours_list.addItem(f"{neighbour.address:<16} {lladdr:<18} {neighbour.device} {neighbour.state}")
+
+    def _mesh_ops_page(self) -> QWidget:
+        page, layout = self._shell("MESH", "Meshtastic nodes // operator-controlled messaging")
+        self.mesh_status = QLabel("LINK        PROBING")
+        self.mesh_status.setObjectName("body")
+        layout.addWidget(self.mesh_status)
+
+        layout.addWidget(QLabel("NODES"))
+        self.mesh_nodes_list = QListWidget()
+        layout.addWidget(self.mesh_nodes_list, 1)
+
+        refresh = QPushButton("REFRESH")
+        refresh.clicked.connect(lambda: self.refresh_module("MESH"))
+        layout.addWidget(refresh)
+        self._back(layout)
+        return page
+
+    def refresh_module(self, module: str) -> None:
+        super().refresh_module(module)
+        if module == "MESH":
+            self._submit("MESHNODES", meshtastic_nodes)
+
+    def _collect_futures(self) -> None:
+        mesh_nodes_future = self.futures.get("MESHNODES")
+        mesh_nodes_value = None
+        if mesh_nodes_future is not None and mesh_nodes_future.done():
+            try:
+                mesh_nodes_value = mesh_nodes_future.result()
+            except Exception:
+                mesh_nodes_value = ()
+        super()._collect_futures()
+        if mesh_nodes_value is not None:
+            self.mesh_nodes_list.clear()
+            if mesh_nodes_value:
+                for node in mesh_nodes_value:
+                    last_heard = node.last_heard or "--"
+                    self.mesh_nodes_list.addItem(f"{node.name:<20} {node.id:<12} LAST {last_heard}")
+            else:
+                self.mesh_nodes_list.addItem("NO NODES REPORTED")
 
     def _field_launcher(self) -> QWidget:
         page = QWidget(); page.setObjectName("fieldLauncher")
