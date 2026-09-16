@@ -8,7 +8,7 @@ Project RAV3N is a rugged, offline-first field-computing platform for communicat
 
 ## FIELD//OS
 
-Current development line: **V3 knowledge / ASSIST preview**, based on the efficient V2.9 graphical appliance stack.
+Current development priority: **V3 offline knowledge**, based on the efficient V2.9 graphical appliance stack.
 
 The launcher is organised around operator tasks:
 
@@ -20,12 +20,13 @@ The launcher is organised around operator tasks:
 | NETWORK | Local interfaces, devices and authorised diagnostics |
 | OPS | Operations, evidence and timeline |
 | LIBRARY | Categorised offline knowledge and local references |
-| ASSIST | Optional local AI using operator-controlled inference |
 | FILES | Local storage and operation files |
 | TERMINAL | Explicit operator shell |
 | RVN-01 | Hardware, storage, power and service status |
 
-Optional hardware degrades its own application only. Missing GPS, SDR, mesh or AI must never prevent FIELD//OS from starting.
+AI/ASSIST is deferred. The immediate goal is to make LIBRARY useful with reliable local articles, manuals, ZIM collections and official reference material.
+
+Optional hardware degrades its own application only. Missing GPS, SDR or mesh hardware must never prevent FIELD//OS from starting.
 
 ## Core principles
 
@@ -80,44 +81,43 @@ sudo reboot
 
 Do not bulk-install every integration. Commission only the modules fitted to your RVN-01.
 
-See **[Module Installation Guide](docs/MODULE-INSTALL-GUIDE.md)** for RADIO/RTL-SDR, GPS, offline maps, Meshtastic, networking, offline knowledge, local AI, Bluetooth and appliance mode.
+See **[Module Installation Guide](docs/MODULE-INSTALL-GUIDE.md)** for RADIO/RTL-SDR, GPS, offline maps, Meshtastic, networking, offline knowledge, Bluetooth and appliance mode.
 
 ## Offline knowledge
 
-FIELD//OS indexes bundled references and operator-selected local documentation. A local tree can categorise itself by folder:
+FIELD//OS indexes bundled operator references plus operator-selected local documentation. A local tree categorises itself by folder:
 
 ```text
 ~/knowledge/
-├── medical/
+├── raven/
+├── communications/
 ├── navigation/
 ├── radio/
-├── communications/
+├── cybersecurity/
+├── computing/
+├── emergency/
+├── medical/
 ├── repair/
 ├── survival/
-├── computing/
-├── networking/
-├── manuals/
-└── raven/
+├── travel/
+└── general/
 ```
+
+Bootstrap the open-source documentation sources:
 
 ```bash
-export FIELDOS_KNOWLEDGE_PATHS="$HOME/knowledge"
+bash scripts/bootstrap-knowledge.sh
 ```
 
-The index supports category listing/filtering, search and compact retrieval context. Large ZIM/Kiwix collections can remain companion content rather than being loaded into memory.
-
-See **[Knowledge + AI](docs/KNOWLEDGE-AND-AI.md)**.
-
-## Offline AI // ASSIST
-
-FIELD//OS now includes the backend for an optional local AI assistant. The first adapter targets a local Ollama-compatible endpoint and defaults to loopback. It does not execute generated commands or perform hardware actions.
+Then point FIELD//OS at the local trees you want indexed:
 
 ```bash
-export FIELDOS_AI_URL='http://127.0.0.1:11434'
-export FIELDOS_AI_MODEL='qwen2.5:1.5b'
+export FIELDOS_KNOWLEDGE_PATHS="$HOME/knowledge:$HOME/knowledge/_sources/raspberrypi-documentation/documentation:$HOME/knowledge/_sources/meshtastic-docs/docs"
 ```
 
-Model installation is deliberately separate from FIELD//OS. A small quantised model should be benchmarked on the physical Pi 5 before selecting the permanent RVN-01 model.
+Large ZIM/Kiwix collections remain companion content rather than being loaded into memory. Regulatory and medical references should retain visible revision dates and should not be redistributed unless their licence permits it.
+
+See **[Offline Knowledge Sources](docs/KNOWLEDGE-SOURCES.md)** and the machine-readable catalogue at `config/knowledge/sources.yaml`.
 
 ## Performance profiling
 
@@ -129,15 +129,7 @@ The profiler reports boot timing, memory, CPU, FIELD//OS footprint, services, st
 
 ## Hardware baseline
 
-- Raspberry Pi 5 8 GB
-- Raspberry Pi Active Cooler
-- Raspberry Pi M.2 HAT+
-- 7-inch 800×480 touchscreen
-- powered/expandable USB infrastructure
-- 256 GB local storage baseline
-- keyboard
-- Bluetooth retained
-- optional GNSS, Meshtastic and RTL-SDR modules
+See **[RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md)** for the confirmed inventory and commissioning order.
 
 ## Repository
 
@@ -146,7 +138,7 @@ fieldos/          FIELD//OS application and adapters
 config/           tool, playbook and knowledge manifests
 docs/             architecture, install and commissioning guides
 deploy/           appliance/systemd configuration
-scripts/          installation, rollback and profiling
+scripts/          installation, rollback, knowledge and profiling tooling
 hardware/         physical design/BOM material
 assets/           branding and visual assets
 tests/            automated tests
@@ -154,8 +146,10 @@ tests/            automated tests
 
 ## Documentation
 
+- [RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md)
+- [RVN-01 Commissioning](docs/RVN-01-COMMISSIONING.md)
+- [Offline Knowledge Sources](docs/KNOWLEDGE-SOURCES.md)
 - [Module Installation Guide](docs/MODULE-INSTALL-GUIDE.md)
-- [Knowledge + AI](docs/KNOWLEDGE-AND-AI.md)
 - [FIELD//OS Architecture](docs/FIELD-OS-ARCHITECTURE.md)
 - [Performance](docs/PERFORMANCE.md)
 - [Roadmap](docs/ROADMAP.md)
