@@ -20,10 +20,17 @@ dependencies = [
 system = ["psutil>=6,<8"]
 mesh = ["meshtastic>=2,<3"]
 radio = ["numpy>=2,<3"]
+# python-libzim (PyPI: libzim) is the official openZIM Python binding: a
+# compiled wheel (Cython + libzim C++) rather than pure Python, and
+# GPL-3.0-licensed, same license family as the meshtastic extra above. It
+# ships manylinux wheels for aarch64 as well as win_amd64/macOS, so it works
+# on the Raspberry Pi 5 target the same as on this Windows dev box.
+library = ["libzim>=3,<4"]
 all-python = [
   "psutil>=6,<8",
   "meshtastic>=2,<3",
   "numpy>=2,<3",
+  "libzim>=3,<4",
 ]
 
 [project.scripts]
