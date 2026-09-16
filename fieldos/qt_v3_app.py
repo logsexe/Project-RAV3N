@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from .knowledge import KnowledgeEntry, KnowledgeIndex
 from .qt_app import _display_summary
 from .qt_field_app import FieldOSWindow as V29FieldOSWindow, V29_STYLE
+from .system_health import HealthSnapshot, collect_health_snapshot
 
 
 V3_APPS = (
@@ -36,9 +37,6 @@ V3_APPS = (
     ("RVN-01", "◆", "SYSTEM / HARDWARE"),
 )
 
-# Stable operator-facing sections. A section may group several lower-level
-# knowledge categories so bundled FIELD//OS notes and user collections appear
-# together without forcing the filesystem taxonomy onto the UI.
 KNOWLEDGE_SECTIONS = (
     ("RAVEN", {"raven", "knowledge"}),
     ("RADIO", {"radio", "rf"}),
@@ -74,11 +72,27 @@ QPushButton#knowledgeSection:checked {
     border:2px solid #63ff88;
     color:#ffffff;
 }
+QWidget#healthPanel {
+    background:#071009;
+    border:1px solid #1e4028;
+    border-radius:8px;
+}
+QLabel#healthTitle {
+    color:#8cf5a7;
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:1px;
+}
+QLabel#healthBody {
+    color:#d7f7df;
+    font-family:'DejaVu Sans Mono';
+    font-size:11px;
+}
 """
 
 
 class FieldOSWindow(V29FieldOSWindow):
-    """FIELD//OS V3 — nine-tile launcher with an offline knowledge library."""
+    """FIELD//OS V3 — nine-tile launcher, offline library and RVN-01 health."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -89,10 +103,12 @@ class FieldOSWindow(V29FieldOSWindow):
         self.knowledge_future: Future = self.executor.submit(KnowledgeIndex.load_default)
         self.active_knowledge_section: str | None = None
         self.section_buttons: dict[str, QPushButton] = {}
+        self.health_future: Future | None = None
+        self.health_labels: dict[str, QLabel] = {}
 
         self._replace_page("LIBRARY", self._library_page())
+        self._replace_page("RVN-01", self._rvn01_page())
 
-        # Replace the inherited V2.9 launcher with the locked nine-tile V3 grid.
         old_launcher = self.launcher
         index = self.stack.indexOf(old_launcher)
         self.stack.removeWidget(old_launcher)
@@ -196,6 +212,39 @@ class FieldOSWindow(V29FieldOSWindow):
         self._back(layout)
         return page
 
+    def _rvn01_page(self) -> QWidget:
+        page, layout = self._shell("RVN-01", "System // power // hardware // USB // network // services")
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(7)
+        grid.setVerticalSpacing(7)
+        for index, name in enumerate(("SYSTEM", "POWER", "HARDWARE", "USB", "NETWORK", "SERVICES")):
+            panel = QWidget()
+            panel.setObjectName("healthPanel")
+            panel_layout = QVBoxLayout(panel)
+            panel_layout.setContentsMargins(9, 7, 9, 7)
+            panel_layout.setSpacing(3)
+            title = QLabel(name)
+            title.setObjectName("healthTitle")
+            panel_layout.addWidget(title)
+            body = QLabel("PROBING...")
+            body.setObjectName("healthBody")
+            body.setAlignment(Qt.AlignmentFlag.AlignTop)
+            body.setWordWrap(False)
+            panel_layout.addWidget(body, 1)
+            self.health_labels[name] = body
+            grid.addWidget(panel, index // 3, index % 3)
+        layout.addLayout(grid, 1)
+        row = QHBoxLayout()
+        self.health_meta = QLabel("HEALTH SNAPSHOT // WAITING")
+        self.health_meta.setObjectName("subtitle")
+        row.addWidget(self.health_meta, 1)
+        refresh = QPushButton("REFRESH")
+        refresh.clicked.connect(self._refresh_health)
+        row.addWidget(refresh)
+        layout.addLayout(row)
+        self._back(layout)
+        return page
+
     def _section_categories(self, name: str | None) -> set[str] | None:
         if name is None:
             return None
@@ -226,11 +275,9 @@ class FieldOSWindow(V29FieldOSWindow):
         query = self.library_search.text().strip()
         candidates = self.knowledge.search(query, limit=250)
         self.knowledge_entries = [entry for entry in candidates if self._matches_section(entry)][:80]
-
         self.library_list.clear()
         for entry in self.knowledge_entries:
             self.library_list.addItem(f"[{entry.category.upper()}] {entry.title}")
-
         section = self.active_knowledge_section or "ALL"
         self.library_meta.setText(
             f"SECTION {section}   •   INDEX {len(self.knowledge.all)} DOCS   •   RESULTS {len(self.knowledge_entries)}"
@@ -260,16 +307,38 @@ class FieldOSWindow(V29FieldOSWindow):
             f"{entry.summary}\n\n{entry.body}"
         )
 
+    def _refresh_health(self) -> None:
+        if self.health_future is not None and not self.health_future.done():
+            return
+        self.health_meta.setText("HEALTH SNAPSHOT // PROBING")
+        self.health_future = self.executor.submit(collect_health_snapshot)
+
+    def _render_health(self, snapshot: HealthSnapshot) -> None:
+        for section, rows in snapshot.sections.items():
+            label = self.health_labels.get(section)
+            if label is None:
+                continue
+            label.setText("\n".join(f"{key:<10} {value}" for key, value in rows))
+        self.health_meta.setText(f"HEALTH SNAPSHOT // {datetime.now().strftime('%H:%M:%S')} // LIVE LOCAL STATE")
+
     def _collect_v3_work(self) -> None:
-        if self.knowledge is not None or not self.knowledge_future.done():
-            return
-        try:
-            self.knowledge = self.knowledge_future.result()
-        except Exception as exc:
-            self.library_detail.setPlainText(f"KNOWLEDGE INDEX ERROR // {type(exc).__name__}")
-            self.library_meta.setText("INDEX   ERROR")
-            return
-        self._refresh_library_results()
+        if self.knowledge is None and self.knowledge_future.done():
+            try:
+                self.knowledge = self.knowledge_future.result()
+            except Exception as exc:
+                self.library_detail.setPlainText(f"KNOWLEDGE INDEX ERROR // {type(exc).__name__}")
+                self.library_meta.setText("INDEX   ERROR")
+            else:
+                self._refresh_library_results()
+
+        if self.health_future is not None and self.health_future.done():
+            try:
+                snapshot = self.health_future.result()
+            except Exception as exc:
+                self.health_meta.setText(f"HEALTH SNAPSHOT // ERROR // {type(exc).__name__}")
+            else:
+                self._render_health(snapshot)
+            self.health_future = None
 
     def open_app(self, name: str) -> None:
         if name == "LIBRARY":
@@ -277,6 +346,11 @@ class FieldOSWindow(V29FieldOSWindow):
             self.footer.setText("RVN-01 // LIBRARY // OFFLINE KNOWLEDGE")
             self._refresh_library_results()
             self.library_search.setFocus()
+            return
+        if name == "RVN-01":
+            self.stack.setCurrentWidget(self.pages["RVN-01"])
+            self.footer.setText("RVN-01 // SYSTEM HEALTH // LOCAL STATE")
+            self._refresh_health()
             return
         super().open_app(name)
 
@@ -287,7 +361,7 @@ class FieldOSWindow(V29FieldOSWindow):
 
 
 def main() -> int:
-    print("FIELD//OS V3 // offline knowledge library", flush=True)
+    print("FIELD//OS V3 // offline knowledge + RVN-01 health", flush=True)
     print(_display_summary(), flush=True)
     if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True)
