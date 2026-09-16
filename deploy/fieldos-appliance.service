@@ -1,0 +1,26 @@
+[Unit]
+Description=RAVEN RVN-01 FIELD//OS graphical appliance
+After=systemd-user-sessions.service dbus.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+User=logs
+WorkingDirectory=/home/logs/Project-RAV3N
+Environment=FIELDOS_DATA_DIR=/home/logs/.fieldos
+Environment=QT_QPA_PLATFORM=wayland
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WAYLAND_DISPLAY=wayland-0
+ExecStart=/home/logs/Project-RAV3N/.venv/bin/fieldos
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=8
+KillMode=mixed
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/logs/.fieldos /home/logs/Project-RAV3N
+
+[Install]
+WantedBy=graphical.target
