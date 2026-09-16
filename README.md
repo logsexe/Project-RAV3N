@@ -1,16 +1,25 @@
 # RAVEN // RVN-01
 
-**Rugged Raspberry Pi 5 field computer running FIELD//OS.**
+**An open-source, off-grid field computer.**
 
-RAVEN is an offline-first field-computing platform combining a Pi 5 hardware build with **FIELD//OS**, a 7-inch graphical operator environment, for communications, navigation, receive-only RF, local networking, offline knowledge, operations and hardware awareness.
+RAVEN is a rugged Raspberry Pi 5 build running **FIELD//OS**, a self-contained operator environment for going somewhere with no infrastructure — no cell signal, no Wi-Fi, no power grid — and still having navigation, communications, RF awareness, local network diagnostics, and a case-management layer for whatever you're doing out there.
 
-> Development hardware. Use radio, network and security capabilities only where lawful and authorised.
+It's built for two overlapping audiences: **security professionals** who need a field kit for authorised on-site work, and **off-grid operators** — backcountry travel, disaster response, remote fieldwork — who need comms and navigation that don't depend on infrastructure being there. The common thread is the same in both cases: everything works with zero connectivity, and nothing here calls home.
+
+## Responsible use
+
+RAVEN bundles capabilities — wireless monitoring, network diagnostics, evidence handling — that are dual-use by nature, the same way Kismet, Wireshark or a Flipper Zero are. That's a deliberate design choice, not an oversight, and it comes with the same expectation those tools carry:
+
+- **Only use radio, network and wireless-recon capabilities on systems and spectrum you own or are explicitly authorised to test or observe.**
+- FIELD//OS defaults to passive/receive-only behaviour everywhere it can (RADIO is receive-only, MESH transmission is an explicit operator action) — that default is intentional and should be preserved in anything built on top of it.
+- The maintainers provide this software for lawful, authorised use only and accept no responsibility for misuse. Know and follow the laws that apply to radio transmission, network monitoring and wireless testing in your jurisdiction.
 
 ## Scope
 
 - **Offline-first**: every feature works without Internet access; optional hardware (GPS, SDR, mesh) enhances FIELD//OS but its absence must never prevent it from starting — missing modules report `NOT PRESENT` rather than failing.
-- **Operator-focused appliance**: a single full-screen application with a fixed 9-tile home screen, not a conventional desktop.
+- **Operator-focused appliance**: a single full-screen application with a fixed home-screen grid, not a conventional desktop.
 - **Explicit control**: radio, network and shell actions are operator-initiated, never automatic.
+- **Built to be replicated**: the goal is a BOM, build guide and codebase that another builder can follow end-to-end, not a one-off personal build.
 
 AI/ASSIST (local LLM integration) is implemented at the adapter level (`fieldos/offline_ai.py`) but not yet wired into the UI — deferred behind the offline knowledge library and hardware commissioning.
 
@@ -85,17 +94,18 @@ Override the root with `FIELDOS_DATA_DIR`; index local reference-repo checkouts 
 
 ## Hardware
 
-Current platform baseline: Raspberry Pi 5 (8 GB), Active Cooler, 7-inch 800×480 touchscreen, local storage, powered USB expansion, Bluetooth, and optional GNSS / Meshtastic / RTL-SDR / audio modules.
+Current platform baseline: Raspberry Pi 5 (8 GB), Active Cooler, 7-inch 800×480 touchscreen, local storage, powered USB expansion, Bluetooth, and optional GNSS / Meshtastic / RTL-SDR / audio modules. A dedicated monitor-mode-capable Wi-Fi adapter is planned but not yet selected — see Current focus.
 
 See the [RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md) for the current confirmed inventory and commissioning order.
 
 ## Current focus
 
-1. Finish the FIELD//OS LIBRARY experience
-2. Commission arriving hardware modules
-3. Expand RVN-01 system-health telemetry
+1. Select and commission a dedicated Wi-Fi adapter for passive wireless recon (monitor mode, no injection/attack tooling planned at this stage), and build the FIELD//OS surface for it, gated through the existing operator-profile system
+2. Establish a real, measured power budget across SDR/LoRa/GNSS/Wi-Fi/display before finalising the battery system — the single most safety-critical unresolved item for an off-grid device
+3. Commission arriving hardware modules
 4. Refine appliance boot and recovery behaviour
 5. Finalise the physical RVN-01 layout
+6. Keep the BOM, build guide and install docs accurate enough for another builder to follow end-to-end
 
 ## Repository
 

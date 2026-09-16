@@ -1,87 +1,28 @@
 # Project RAV3N Roadmap
 
-## Phase 0 — Architecture & measurement
+## Software baseline — done
 
-- [x] Name platform RAVEN / RVN-01
-- [x] Define FIELD//OS concept
-- [x] Select rugged case
-- [x] Confirm keyboard physically fits case
-- [x] Define RVN-KB1 keyboard retention concept
-- [ ] Measure keyboard precisely
-- [ ] Measure usable lid geometry precisely
-- [ ] Verify 7-inch display dimensions and connector locations
-- [ ] Build component CAD reference library
-- [ ] Produce RVN-KB1 printable CAD
-- [ ] Establish base-panel coordinate system
+FIELD//OS is a PySide6 (Qt) full-screen appliance shell with nine surfaces, offline-first throughout: missing hardware reports `NOT PRESENT` rather than failing anything.
 
-## FIELD//OS V0.1 — Operator shell prototype
+- [x] RADIO — receive-only SDR spectrum/waterfall, tune preview, live RTL-SDR FFT when a device is attached
+- [x] NAVIGATION — offline MBTiles rendering, live GNSS overlay, waypoints with distance/bearing from the current fix, GPX import/export (interoperable with QMapShack, Garmin, OsmAnd)
+- [x] MESH — Meshtastic node list, persistent connection, operator-controlled send/receive messaging logged into OPS
+- [x] NETWORK — local interface and ARP/ND neighbour listing (passive, read-only)
+- [x] OPS — assets, evidence, timeline and notes via `OperationsEngine`; operation switching, export to ZIP; terminal command transcripts captured automatically
+- [x] LIBRARY — categorised offline knowledge search, Kiwix/ZIM companion support
+- [x] FILES — read-only local storage browser
+- [x] TERMINAL — persistent working directory, command history recall, output captured into the active operation
+- [x] RVN-01 — live system/power/hardware/USB/network/service health
+- [x] Cross-platform CI (Python 3.11 & 3.12, full test suite) and an installable `fieldos` console entry point
 
-- [x] Python package scaffold
-- [x] Main dashboard
-- [x] Keyboard navigation
-- [x] Categories and tool manifest loader
-- [x] Local manifest search
-- [x] Mock telemetry adapter
-- [x] Tool detail views and installed-tool detection
+## Next — off-grid capability
 
-## FIELD//OS V0.2 — Tool console
+RAV3N is being built for two overlapping audiences — security professionals doing authorised field work, and off-grid operators who need comms and navigation without infrastructure. See [Responsible use](../README.md#responsible-use) in the README before working on anything in this section.
 
-- [x] Expanded multi-category core tool library
-- [x] Rich tool metadata
-- [x] Operator command recipes
-- [x] Recipe-aware search
-- [x] Embedded local terminal
-- [x] Independent terminal sessions
-- [x] Command history and staged recipe workflow
-
-## FIELD//OS V0.3 — 800x480 appliance UI
-
-- [x] Full-screen progressive views
-- [x] Compact one-line platform status
-- [x] Full-screen terminal view
-- [x] Context-first keyboard controls
-- [x] Dedicated system-status view
-- [x] 7-inch display-oriented layout
-
-## FIELD//OS V0.4 — Field operations layer
-
-- [x] Persistent operation/session model
-- [x] Per-operation timestamped notes
-- [x] Session directory structure
-- [x] Active operation status
-- [x] Operator playbook engine
-- [x] Network Triage / Windows IR / Evidence Intake playbooks
-- [x] Wireless Survey / RF Observation playbooks
-- [x] Playbook command staging
-
-## FIELD//OS V0.5 — Offline knowledge and operator state
-
-- [x] Persistent favourites
-- [x] Persistent recent tools
-- [x] Combined tool + knowledge search
-- [x] Bundled offline knowledge vault
-- [x] Local documentation/repository indexer
-- [x] SquidSec / BlueTeam-Tools / RedTeam-Tools local knowledge adapter
-- [x] Knowledge command staging
-- [x] Operation ZIP export workflow
-
-## FIELD//OS V1.0 — RVN-01 software baseline
-
-- [x] Real best-effort system telemetry
-- [x] Network-interface discovery
-- [x] GNSS/gpsd readiness adapter
-- [x] Meshtastic readiness adapter
-- [x] CPU temperature / storage / battery telemetry
-- [x] Persistent terminal `cd` working directory
-- [x] Running-command interrupt control
-- [x] Automatic command transcript capture per operation
-- [x] `commands/` operation artefact directory
-- [x] Phosphor / Amber / Ice / Red / Monochrome themes
-- [x] Host compatibility health-check command
-- [x] ARM64 / Debian bootstrap installer
-- [x] tty1 appliance-style systemd service
-- [x] Linux + Windows CI
-- [x] V1 software documentation
+- [ ] Select a dedicated Wi-Fi adapter for **passive** wireless recon (monitor mode; MediaTek MT7612U-class chipset preferred for mainline kernel support). No injection/attack tooling is planned at this stage.
+- [ ] Build a FIELD//OS WIFI surface — AP/client enumeration and signal mapping, following the same receive-only-by-default pattern as RADIO and MESH, gated through the existing `ProfileManager` (`fieldos/profiles.py`)
+- [ ] Establish a measured power budget across SDR + LoRa + dual GNSS + Wi-Fi + display before finalising the battery system — see [Hardware REV A](#hardware-rev-a--physical-commissioning)
+- [ ] AI/ASSIST — `fieldos/offline_ai.py` (local Ollama adapter) is implemented but has no UI surface yet
 
 ## Hardware REV A — physical commissioning
 
@@ -92,7 +33,7 @@
 - [ ] Display integration and 800×480 validation
 - [ ] Keyboard integration / RVN-KB1 prototype
 - [ ] USB distribution validation
-- [ ] Power architecture and battery selection
+- [ ] Power architecture and battery selection (blocked on the power budget above)
 - [ ] Cooling / airflow validation
 - [ ] Meshtastic module selection and AU-region validation
 - [ ] GNSS module selection and fix testing
@@ -101,6 +42,12 @@
 - [ ] Closed-case thermal test
 - [ ] Field endurance test
 
+See the [RVN-01 Hardware BOM](../hardware/bom/RVN-01-BOM.md) for the current confirmed inventory.
+
+## Later — project maturity
+
+Deferred deliberately until there's an active outside contributor to design for: CONTRIBUTING guide, issue templates, `SECURITY.md`, code of conduct.
+
 ## V1 acceptance target
 
-FIELD//OS V1 software is feature-complete. RAVEN V1 is complete when the physical RVN-01 hardware has been commissioned against the software baseline: the unit boots into FIELD//OS, the 7-inch display and keyboard are reliable, power and cooling are validated, and the installed GNSS/Meshtastic/network/RF modules report correctly through the hardware adapters.
+RAVEN V1 is complete when the physical RVN-01 hardware has been commissioned against the software baseline above: the unit boots into FIELD//OS, the 7-inch display and keyboard are reliable, power and cooling are validated, and the installed GNSS/Meshtastic/network/RF modules report correctly through the hardware adapters.
