@@ -5,8 +5,22 @@ import sys
 from datetime import datetime
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QGridLayout,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
+from .engine import OperationsEngine
+from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
 from .qt_app import STYLE, _display_summary
 
@@ -50,9 +64,20 @@ class FieldOSWindow(V29FieldOSWindow):
         super().__init__()
         self.setWindowTitle("RAVEN // FIELD//OS V2.9")
         self.pages["NAVIGATION"] = self.pages["MAP"]
-        self.pages["OPS"] = self.pages["INTEL"]
         self.pages["RVN-01"] = self.pages["SYSTEM"]
         self.tak_page = self.pages.get("TAK")
+
+        self.operations = OperationSessionManager()
+        self.ops_engine = OperationsEngine()
+        old_intel = self.pages.pop("INTEL")
+        index = self.stack.indexOf(old_intel)
+        self.stack.removeWidget(old_intel)
+        old_intel.deleteLater()
+        ops_page = self._ops_page()
+        self.stack.insertWidget(index, ops_page)
+        self.pages["OPS"] = ops_page
+        self._populate_operations()
+        self._refresh_ops()
 
         old_launcher = self.launcher
         index = self.stack.indexOf(old_launcher)
@@ -62,8 +87,133 @@ class FieldOSWindow(V29FieldOSWindow):
         self.stack.insertWidget(index, self.launcher)
 
         self._rename_page("NAVIGATION", "NAVIGATION", "Offline map // GPS // waypoints // tracks // TAK")
-        self._rename_page("OPS", "OPS", "Active operation // notes // assets // evidence // timeline")
         self._rename_page("RVN-01", "RVN-01", "System // hardware // storage // power // services")
+
+    def _ops_page(self) -> QWidget:
+        page, layout = self._shell("OPS", "Active operation // notes // assets // evidence // timeline")
+
+        op_row = QHBoxLayout()
+        self.ops_selector = QComboBox()
+        self.ops_selector.currentIndexChanged.connect(self._select_operation)
+        op_row.addWidget(self.ops_selector, 1)
+        new_op = QPushButton("NEW")
+        new_op.clicked.connect(self._new_operation)
+        op_row.addWidget(new_op)
+        export_op = QPushButton("EXPORT")
+        export_op.clicked.connect(self._export_operation)
+        op_row.addWidget(export_op)
+        layout.addLayout(op_row)
+
+        self.ops_meta = QLabel("ASSETS --   EVIDENCE --   EVENTS --")
+        self.ops_meta.setObjectName("subtitle")
+        layout.addWidget(self.ops_meta)
+
+        body = QHBoxLayout()
+        left = QVBoxLayout()
+        left.addWidget(QLabel("TIMELINE"))
+        self.ops_timeline = QListWidget()
+        left.addWidget(self.ops_timeline, 1)
+        body.addLayout(left, 2)
+
+        right = QVBoxLayout()
+        right.addWidget(QLabel("ASSETS"))
+        self.ops_assets = QListWidget()
+        right.addWidget(self.ops_assets, 1)
+        body.addLayout(right, 1)
+        layout.addLayout(body, 1)
+
+        note_row = QHBoxLayout()
+        self.ops_note_input = QLineEdit()
+        self.ops_note_input.setPlaceholderText("Add a timestamped note")
+        self.ops_note_input.returnPressed.connect(self._add_ops_note)
+        note_row.addWidget(self.ops_note_input, 1)
+        add_note = QPushButton("ADD NOTE")
+        add_note.clicked.connect(self._add_ops_note)
+        note_row.addWidget(add_note)
+        layout.addLayout(note_row)
+
+        asset_row = QHBoxLayout()
+        self.ops_asset_kind = QLineEdit()
+        self.ops_asset_kind.setPlaceholderText("KIND (e.g. HOST)")
+        self.ops_asset_value = QLineEdit()
+        self.ops_asset_value.setPlaceholderText("VALUE")
+        self.ops_asset_label = QLineEdit()
+        self.ops_asset_label.setPlaceholderText("LABEL (optional)")
+        for field in (self.ops_asset_kind, self.ops_asset_value, self.ops_asset_label):
+            asset_row.addWidget(field, 1)
+        add_asset = QPushButton("ADD ASSET")
+        add_asset.clicked.connect(self._add_ops_asset)
+        asset_row.addWidget(add_asset)
+        layout.addLayout(asset_row)
+
+        self._back(layout)
+        return page
+
+    def _populate_operations(self) -> None:
+        self.ops_selector.blockSignals(True)
+        self.ops_selector.clear()
+        for session in self.operations.sessions:
+            self.ops_selector.addItem(f"{session.id} — {session.name}")
+        self.ops_selector.setCurrentIndex(self.operations.active_index)
+        self.ops_selector.blockSignals(False)
+
+    def _select_operation(self, index: int) -> None:
+        if index < 0:
+            return
+        self.operations.select(index)
+        self._refresh_ops()
+
+    def _new_operation(self) -> None:
+        name, ok = QInputDialog.getText(self, "NEW OPERATION", "Operation name:")
+        if not ok or not name.strip():
+            return
+        self.operations.create(name.strip())
+        self._populate_operations()
+        self._refresh_ops()
+
+    def _export_operation(self) -> None:
+        try:
+            archive = self.operations.export_active()
+        except OSError as exc:
+            self.footer.setText(f"RVN-01 // OPS // EXPORT FAILED // {type(exc).__name__}")
+            return
+        self.footer.setText(f"RVN-01 // OPS // EXPORTED // {archive.name}")
+
+    def _add_ops_note(self) -> None:
+        text = self.ops_note_input.text().strip()
+        if not text:
+            return
+        self.operations.add_note(text)
+        self.ops_note_input.clear()
+        self._refresh_ops()
+
+    def _add_ops_asset(self) -> None:
+        kind = self.ops_asset_kind.text().strip()
+        value = self.ops_asset_value.text().strip()
+        label = self.ops_asset_label.text().strip()
+        if not kind or not value:
+            self.footer.setText("RVN-01 // OPS // ASSET NEEDS KIND AND VALUE")
+            return
+        self.ops_engine.upsert_asset(self.operations.active.id, kind, value, label=label)
+        self.ops_asset_kind.clear()
+        self.ops_asset_value.clear()
+        self.ops_asset_label.clear()
+        self._refresh_ops()
+
+    def _refresh_ops(self) -> None:
+        operation_id = self.operations.active.id
+        assets = self.ops_engine.list_assets(operation_id)
+        evidence = self.ops_engine.list_evidence(operation_id)
+        events = self.ops_engine.timeline(operation_id, limit=50)
+        self.ops_meta.setText(
+            f"OPERATION {operation_id}   ASSETS {len(assets)}   EVIDENCE {len(evidence)}   EVENTS {len(events)}"
+        )
+        self.ops_timeline.clear()
+        for event in events:
+            self.ops_timeline.addItem(f"{event.timestamp}  {event.event_type:<10} {event.summary}")
+        self.ops_assets.clear()
+        for asset in assets:
+            self.ops_assets.addItem(f"[{asset.kind}] {asset.label}")
 
     def _field_launcher(self) -> QWidget:
         page = QWidget(); page.setObjectName("fieldLauncher")
@@ -98,6 +248,7 @@ class FieldOSWindow(V29FieldOSWindow):
         if name == "NAVIGATION": self.refresh_module("MAP")
         elif name in {"RADIO", "MESH", "LIBRARY"}: self.refresh_module(name)
         elif name in {"NETWORK", "RVN-01"}: self.refresh_local_state()
+        elif name == "OPS": self._refresh_ops()
         # Kick demand-driven adapters immediately on entry rather than waiting
         # for their low-frequency idle timers.
         if name == "RADIO": self.refresh_live_radio()
