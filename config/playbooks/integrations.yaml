@@ -1,0 +1,84 @@
+schema_version: 1
+
+playbooks:
+  - id: nmap-asset-import
+    name: Nmap to Asset Registry
+    category: network
+    description: Run an authorised Nmap scan in XML mode, preserve the output and import hosts and services into FIELD//OS.
+    steps:
+      - name: Capture XML scan
+        description: Produce machine-readable XML for an authorised target or subnet.
+        tool: nmap
+        command: nmap -sV -oX scan.xml <authorised-target>
+      - name: Import scan
+        description: Create IP assets and service timeline events from the XML output.
+        command: fieldos-control import nmap scan.xml --ingest-source
+      - name: Review assets
+        command: fieldos-control asset list
+      - name: Review timeline
+        command: fieldos-control timeline
+
+  - id: yara-event-import
+    name: YARA Findings to Timeline
+    category: blue
+    description: Capture YARA matches and promote them into the current operation timeline.
+    steps:
+      - name: Run recursive scan
+        tool: yara
+        command: yara -r <rules.yar> <evidence-directory> > yara-results.txt
+      - name: Import findings
+        command: fieldos-control import yara yara-results.txt --ingest-source
+      - name: Review timeline
+        command: fieldos-control timeline
+
+  - id: zeek-asset-import
+    name: Zeek Connections to Assets
+    category: network
+    description: Analyse an authorised capture with Zeek and import connection endpoints into the Asset Engine.
+    steps:
+      - name: Analyse capture
+        tool: zeek
+        command: zeek -r <capture.pcap>
+      - name: Import connection log
+        command: fieldos-control import zeek conn.log --ingest-source
+      - name: Review assets
+        command: fieldos-control asset list
+
+  - id: gnss-timeline-import
+    name: GNSS Track to Timeline
+    category: field
+    description: Capture gpsd TPV JSON and import location fixes into the operation timeline.
+    steps:
+      - name: Capture TPV stream
+        tool: gpspipe
+        command: gpspipe -w -n 30 > gnss.jsonl
+      - name: Import fixes
+        command: fieldos-control import gnss gnss.jsonl --ingest-source
+      - name: Review timeline
+        command: fieldos-control timeline
+
+  - id: meshtastic-node-import
+    name: Meshtastic Nodes to Assets
+    category: comms
+    description: Import a Meshtastic JSON node snapshot into the RAVEN Asset Engine.
+    steps:
+      - name: Export node snapshot
+        description: Save a JSON node snapshot using the locally installed Meshtastic tooling or API integration.
+      - name: Import node snapshot
+        command: fieldos-control import meshtastic meshtastic-nodes.json --ingest-source
+      - name: Review assets
+        command: fieldos-control asset list
+
+  - id: osint-enrichment-import
+    name: OSINT Enrichment to Assets
+    category: osint
+    description: Import normalised JSON enrichment results containing domains, hostnames, IPs, emails or URLs.
+    steps:
+      - name: Prepare normalised JSON
+        description: Use a list or a results/records object with common selector fields such as domain, hostname, ip, email and url.
+      - name: Import enrichment
+        command: fieldos-control import osint-json enrichment.json --ingest-source
+      - name: Review assets
+        command: fieldos-control asset list
+      - name: Review timeline
+        command: fieldos-control timeline

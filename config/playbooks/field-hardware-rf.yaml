@@ -1,0 +1,134 @@
+schema_version: 1
+
+playbooks:
+  - id: rvn01-health
+    name: RVN-01 Health Check
+    category: field
+    description: Fast local readiness check for the RAVEN node before field use.
+    steps:
+      - name: Host identity
+        tool: hostnamectl
+        command: hostnamectl
+      - name: Storage state
+        tool: lsblk
+        command: lsblk -f
+      - name: Filesystem usage
+        tool: df
+        command: df -h
+      - name: Memory state
+        tool: free
+        command: free -h
+      - name: CPU temperature
+        tool: vcgencmd
+        command: vcgencmd measure_temp
+      - name: Throttle state
+        tool: vcgencmd
+        command: vcgencmd get_throttled
+      - name: Failed services
+        tool: systemctl
+        command: systemctl --failed
+      - name: Radio state
+        tool: rfkill
+        command: rfkill list
+
+  - id: meshtastic-readiness
+    name: Meshtastic Readiness
+    category: comms
+    description: Confirm a connected Meshtastic device and inspect mesh state before deployment.
+    steps:
+      - name: USB inventory
+        tool: lsusb
+        command: lsusb
+      - name: Meshtastic info
+        tool: meshtastic
+        command: meshtastic --info
+      - name: Node list
+        tool: meshtastic
+        command: meshtastic --nodes
+      - name: Record channel and region
+        description: Record configured region/channel details and confirm they comply with local requirements.
+      - name: Record node state
+        description: Add key node identifiers and expected peers to the active operation.
+
+  - id: gnss-readiness
+    name: GNSS Readiness
+    category: field
+    description: Confirm GNSS service visibility and obtain a fix without requiring online maps.
+    steps:
+      - name: gpsd service
+        command: systemctl status gpsd --no-pager
+      - name: JSON stream
+        tool: gpspipe
+        command: gpspipe -w -n 10
+      - name: Record location
+        description: Add the verified location or note NO FIX in the active operation.
+
+  - id: usb-serial-device
+    name: USB Serial Device Intake
+    category: hardware
+    description: Safely identify an attached USB serial device before opening a console.
+    steps:
+      - name: USB inventory
+        tool: lsusb
+        command: lsusb
+      - name: Kernel messages
+        tool: dmesg
+        command: dmesg | tail -n 60
+      - name: Device metadata
+        tool: udevadm
+        command: udevadm info --query=all --name=<device>
+      - name: Open serial console
+        description: Review device documentation and confirm the baud rate before connecting.
+        tool: picocom
+        command: picocom -b <baud> <device>
+      - name: Record device
+        description: Add model, serial path and purpose to the active operation.
+
+  - id: raspberry-pi-hardware-check
+    name: Raspberry Pi Hardware Check
+    category: hardware
+    description: Inspect RVN-01 Raspberry Pi hardware state during commissioning or troubleshooting.
+    steps:
+      - name: Temperature
+        tool: vcgencmd
+        command: vcgencmd measure_temp
+      - name: Throttling
+        tool: vcgencmd
+        command: vcgencmd get_throttled
+      - name: USB devices
+        tool: lsusb
+        command: lsusb
+      - name: Block devices
+        tool: lsblk
+        command: lsblk -f
+      - name: I2C bus
+        description: Run only when I2C is enabled and attached hardware is expected.
+        tool: i2cdetect
+        command: i2cdetect -y 1
+      - name: Record anomalies
+        description: Note undervoltage, thermal throttling, unexpected USB devices or storage faults.
+
+  - id: rtl-sdr-readiness
+    name: RTL-SDR Readiness
+    category: rf
+    description: Receive-only SDR device check and observation workflow.
+    steps:
+      - name: USB inventory
+        tool: lsusb
+        command: lsusb
+      - name: RTL device test
+        tool: rtl-test
+        command: rtl_test -t
+      - name: Soapy enumeration
+        tool: soapy-sdr-util
+        command: SoapySDRUtil --find
+      - name: Passive decode
+        description: Receive supported local ISM transmissions only where lawful.
+        tool: rtl433
+        command: rtl_433
+      - name: Power sweep
+        description: Generate a receive-only spectrum sweep for later analysis.
+        tool: rtlpower
+        command: rtl_power -f <start>:<stop>:<bin-size> <sweep.csv>
+      - name: Record observations
+        description: Add frequency ranges, device state and relevant receive-only observations to the operation.

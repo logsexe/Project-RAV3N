@@ -30,32 +30,33 @@ class PlaybookIndex:
     @classmethod
     def load_default(cls) -> "PlaybookIndex":
         project_root = Path(__file__).resolve().parents[1]
-        path = project_root / "config" / "playbooks" / "core.yaml"
-        if not path.exists():
+        manifest_dir = project_root / "config" / "playbooks"
+        if not manifest_dir.exists():
             return cls([])
-        with path.open("r", encoding="utf-8") as handle:
-            payload = yaml.safe_load(handle) or {}
-        playbooks: list[Playbook] = []
-        for item in payload.get("playbooks", []):
-            steps = tuple(
-                PlaybookStep(
-                    name=str(step.get("name", "Step")),
-                    description=str(step.get("description", "")),
-                    tool=(str(step["tool"]) if step.get("tool") else None),
-                    command=(str(step["command"]) if step.get("command") else None),
+
+        playbooks_by_id: dict[str, Playbook] = {}
+        for path in sorted(manifest_dir.glob("*.yaml")):
+            with path.open("r", encoding="utf-8") as handle:
+                payload = yaml.safe_load(handle) or {}
+            for item in payload.get("playbooks", []):
+                steps = tuple(
+                    PlaybookStep(
+                        name=str(step.get("name", "Step")),
+                        description=str(step.get("description", "")),
+                        tool=(str(step["tool"]) if step.get("tool") else None),
+                        command=(str(step["command"]) if step.get("command") else None),
+                    )
+                    for step in item.get("steps", [])
                 )
-                for step in item.get("steps", [])
-            )
-            playbooks.append(
-                Playbook(
+                playbook = Playbook(
                     id=str(item.get("id", "playbook")),
                     name=str(item.get("name", item.get("id", "Playbook"))),
                     category=str(item.get("category", "field")),
                     description=str(item.get("description", "")),
                     steps=steps,
                 )
-            )
-        return cls(playbooks)
+                playbooks_by_id[playbook.id] = playbook
+        return cls(list(playbooks_by_id.values()))
 
     @property
     def all(self) -> tuple[Playbook, ...]:

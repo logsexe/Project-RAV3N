@@ -1,0 +1,112 @@
+schema_version: 1
+
+playbooks:
+  - id: linux-ir
+    name: Linux IR
+    category: blue
+    description: Local Linux host triage with evidence-preserving checks before deeper analysis.
+    steps:
+      - name: Record host identity
+        description: Capture hostname and OS context in the active operation.
+        tool: hostnamectl
+        command: hostnamectl
+      - name: Review logged-in users
+        description: Identify current and recent interactive sessions.
+        command: "who; last -n 20"
+      - name: Review listening services
+        description: Inspect local listening sockets and owning processes.
+        tool: ss
+        command: ss -tulpn
+      - name: Review processes
+        description: Capture a process snapshot sorted by CPU usage.
+        command: "ps aux --sort=-%cpu | head -n 30"
+      - name: Review recent warnings
+        description: Inspect warning-and-higher journal entries for the current boot.
+        tool: journalctl
+        command: journalctl -b -p warning
+      - name: Review authentication
+        description: Inspect recent authentication events where auditd is available.
+        tool: ausearch
+        command: sudo ausearch -m USER_AUTH,USER_LOGIN -ts recent
+      - name: Record findings
+        description: Add operation notes before making any changes to the host.
+
+  - id: pcap-triage
+    name: PCAP Triage
+    category: blue
+    description: Fast offline packet-capture review for protocols, endpoints and suspicious conversations.
+    steps:
+      - name: Verify capture
+        description: Identify the capture file and preserve its hash.
+        tool: sha256sum
+        command: sha256sum <capture.pcapng>
+      - name: Capture summary
+        description: Review high-level packet and protocol statistics.
+        tool: wireshark
+        command: tshark -r <capture.pcapng> -q -z io,phs
+      - name: Endpoint summary
+        description: Enumerate IP endpoints in the capture.
+        tool: tshark-conversations
+        command: tshark -r <capture.pcapng> -q -z endpoints,ip
+      - name: Conversation summary
+        description: Enumerate IP conversations by volume.
+        tool: tshark-conversations
+        command: tshark -r <capture.pcapng> -q -z conv,ip
+      - name: DNS review
+        description: Extract DNS traffic for manual review.
+        tool: wireshark
+        command: tshark -r <capture.pcapng> -Y dns
+      - name: Zeek metadata
+        description: Generate protocol metadata logs from the capture.
+        tool: zeek
+        command: zeek -r <capture.pcapng>
+
+  - id: malware-static-triage
+    name: Malware Static Triage
+    category: blue
+    description: Offline-first static inspection of a suspicious file without executing it.
+    steps:
+      - name: Hash sample
+        description: Record a SHA-256 hash before analysis.
+        tool: sha256sum
+        command: sha256sum <sample>
+      - name: Identify type
+        description: Identify file structure using signatures.
+        tool: file
+        command: file <sample>
+      - name: Extract strings
+        description: Review printable strings without executing the sample.
+        tool: strings
+        command: strings <sample>
+      - name: Inspect metadata
+        description: Extract available metadata fields.
+        tool: exiftool
+        command: exiftool <sample>
+      - name: YARA scan
+        description: Apply an approved local ruleset.
+        tool: yara
+        command: yara <rules.yar> <sample>
+      - name: Hex header
+        description: Review the first bytes for format and embedded indicators.
+        tool: xxd
+        command: xxd -l 256 <sample>
+
+  - id: container-security-review
+    name: Container Security Review
+    category: blue
+    description: Inventory and assess an owned container image before deployment.
+    steps:
+      - name: Generate SBOM
+        description: Inventory packages in the image.
+        tool: syft
+        command: syft <image-name> -o table
+      - name: Vulnerability scan
+        description: Review known package vulnerabilities.
+        tool: trivy
+        command: trivy image <image-name>
+      - name: Secondary vulnerability view
+        description: Cross-check package findings with Grype where installed.
+        tool: grype
+        command: grype <image-name>
+      - name: Record disposition
+        description: Note accepted, remediated and unresolved findings in the operation.

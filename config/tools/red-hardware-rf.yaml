@@ -1,0 +1,205 @@
+schema_version: 2
+
+tools:
+  - id: ffuf
+    name: ffuf
+    category: red
+    subcategory: web-content-discovery
+    priority: recommended
+    description: Fast content discovery against owned or explicitly authorised web applications.
+    command: ffuf
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Directory discovery
+        command: "ffuf -w <wordlist> -u https://<authorised-host>/FUZZ"
+
+  - id: gobuster
+    name: Gobuster
+    category: red
+    subcategory: web-content-discovery
+    priority: recommended
+    description: Directory and DNS enumeration for authorised assessments.
+    command: gobuster
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Directory discovery
+        command: "gobuster dir -u https://<authorised-host> -w <wordlist>"
+
+  - id: whatweb
+    name: WhatWeb
+    category: red
+    subcategory: web-fingerprinting
+    priority: recommended
+    description: Identify technologies exposed by an authorised web service.
+    command: whatweb
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Fingerprint host
+        command: "whatweb https://<authorised-host>"
+
+  - id: feroxbuster
+    name: feroxbuster
+    category: red
+    subcategory: web-content-discovery
+    priority: optional
+    description: Recursive content discovery for owned or authorised web applications.
+    command: feroxbuster
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Authorised content discovery
+        command: "feroxbuster -u https://<authorised-host> -w <wordlist>"
+
+  - id: gowitness
+    name: gowitness
+    category: red
+    subcategory: web-documentation
+    priority: optional
+    description: Capture screenshots and metadata from known authorised web endpoints.
+    command: gowitness
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Screenshot URL
+        command: "gowitness single https://<authorised-host>"
+
+  - id: sslyze
+    name: SSLyze
+    category: red
+    subcategory: tls
+    priority: recommended
+    description: TLS configuration analysis for authorised services.
+    command: sslyze
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: TLS scan
+        command: "sslyze <authorised-host>:443"
+
+  - id: openssl-sclient
+    name: OpenSSL s_client
+    category: red
+    subcategory: tls
+    priority: core
+    description: Manually inspect TLS negotiation and certificates on authorised endpoints.
+    command: openssl
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Inspect TLS endpoint
+        command: "openssl s_client -connect <authorised-host>:443 -servername <authorised-host>"
+
+  - id: esptool
+    name: esptool
+    category: hardware
+    subcategory: microcontrollers
+    priority: core
+    description: Inspect and manage Espressif microcontrollers over serial.
+    command: esptool
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Chip identification
+        command: "esptool chip-id"
+
+  - id: openocd
+    name: OpenOCD
+    category: hardware
+    subcategory: debug
+    priority: recommended
+    description: On-chip debugging and programming for supported development hardware.
+    command: openocd
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Show version
+        command: "openocd --version"
+
+  - id: flashrom
+    name: flashrom
+    category: hardware
+    subcategory: firmware
+    priority: recommended
+    description: Identify and read supported flash chips on owned hardware.
+    command: flashrom
+    offline: true
+    authorised_use_only: true
+    requires_root: true
+    recipes:
+      - name: Probe programmer
+        command: "sudo flashrom -p <programmer>"
+
+  - id: udevadm
+    name: udevadm
+    category: hardware
+    subcategory: device-enumeration
+    priority: core
+    description: Inspect Linux device metadata and hotplug attributes.
+    command: udevadm
+    offline: true
+    recipes:
+      - name: Device info
+        command: "udevadm info --query=all --name=<device>"
+
+  - id: dmesg
+    name: dmesg
+    category: hardware
+    subcategory: device-enumeration
+    priority: core
+    description: Review kernel messages for newly attached hardware and driver state.
+    command: dmesg
+    offline: true
+    recipes:
+      - name: Recent kernel messages
+        command: "dmesg | tail -n 60"
+
+  - id: rtl-test
+    name: rtl_test
+    category: rf
+    subcategory: diagnostics
+    priority: core
+    description: Receive-only RTL-SDR device presence and sample-rate test.
+    command: rtl_test
+    offline: true
+    recipes:
+      - name: Device test
+        command: "rtl_test -t"
+
+  - id: rtl-fm
+    name: rtl_fm
+    category: rf
+    subcategory: receive
+    priority: recommended
+    description: Receive and demodulate supported signals with RTL-SDR hardware.
+    command: rtl_fm
+    offline: true
+    recipes:
+      - name: FM receive example
+        command: "rtl_fm -f <frequency> -M fm -s 200k -"
+
+  - id: soapy-sdr-util
+    name: SoapySDRUtil
+    category: rf
+    subcategory: hardware
+    priority: recommended
+    description: Enumerate SDR devices supported through SoapySDR.
+    command: SoapySDRUtil
+    offline: true
+    recipes:
+      - name: Find SDR devices
+        command: "SoapySDRUtil --find"
+
+  - id: inspectrum
+    name: inspectrum
+    category: rf
+    subcategory: signal-analysis
+    priority: optional
+    description: Offline visual analysis of captured IQ recordings.
+    command: inspectrum
+    offline: true
+    recipes:
+      - name: Open IQ capture
+        command: "inspectrum <capture-file>"

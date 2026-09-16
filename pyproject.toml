@@ -4,20 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fieldos"
-version = "1.2.0"
-description = "FIELD//OS operator environment for RAVEN RVN-01"
+version = "3.0.1"
+description = "Graphical offline-first FIELD//OS environment for RAVEN RVN-01"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "textual>=0.80,<2.0",
-  "PyYAML>=6.0,<7.0",
-  "cryptography>=43,<47",
+  "PySide6>=6.8,<7.0",
+  "PyYAML>=6,<7",
+  "cryptography>=41,<47",
+]
+
+[project.optional-dependencies]
+system = ["psutil>=6,<8"]
+mesh = ["meshtastic>=2,<3"]
+radio = ["numpy>=2,<3"]
+all-python = [
+  "psutil>=6,<8",
+  "meshtastic>=2,<3",
+  "numpy>=2,<3",
 ]
 
 [project.scripts]
-fieldos = "fieldos.__main__:main"
-fieldos-check = "fieldos.health:main"
-fieldos-control = "fieldos.control:main"
+fieldos = "fieldos.qt_v3_health_app:main"
 
 [tool.setuptools.packages.find]
 include = ["fieldos*"]

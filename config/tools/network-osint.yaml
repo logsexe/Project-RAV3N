@@ -1,0 +1,185 @@
+schema_version: 2
+
+tools:
+  - id: dig
+    name: dig
+    category: network
+    subcategory: dns
+    priority: core
+    description: DNS query and troubleshooting utility.
+    command: dig
+    offline: false
+    recipes:
+      - name: A record
+        command: "dig <domain> A"
+      - name: Full trace
+        command: "dig +trace <domain>"
+
+  - id: whois
+    name: whois
+    category: osint
+    subcategory: registration
+    priority: core
+    description: Domain and IP registration lookup for public infrastructure research.
+    command: whois
+    offline: false
+    recipes:
+      - name: Domain registration
+        command: "whois <domain>"
+
+  - id: arp-scan
+    name: arp-scan
+    category: network
+    subcategory: discovery
+    priority: recommended
+    description: Layer-2 host discovery on an authorised local network.
+    command: arp-scan
+    offline: true
+    authorised_use_only: true
+    requires_root: true
+    recipes:
+      - name: Local network
+        command: "sudo arp-scan --localnet"
+
+  - id: netdiscover
+    name: netdiscover
+    category: network
+    subcategory: discovery
+    priority: optional
+    description: Passive and active ARP discovery for authorised local networks.
+    command: netdiscover
+    offline: true
+    authorised_use_only: true
+    requires_root: true
+    recipes:
+      - name: Passive mode
+        command: "sudo netdiscover -p"
+
+  - id: ss
+    name: ss
+    category: network
+    subcategory: sockets
+    priority: core
+    description: Inspect local network sockets and listening services.
+    command: ss
+    offline: true
+    recipes:
+      - name: Listening sockets
+        command: "ss -tulpn"
+
+  - id: ethtool
+    name: ethtool
+    category: network
+    subcategory: interfaces
+    priority: recommended
+    description: Inspect Ethernet interface state and link settings.
+    command: ethtool
+    offline: true
+    recipes:
+      - name: Interface details
+        command: "ethtool <interface>"
+
+  - id: nmcli
+    name: nmcli
+    category: network
+    subcategory: interfaces
+    priority: core
+    description: Inspect NetworkManager connection and radio state.
+    command: nmcli
+    offline: true
+    recipes:
+      - name: Device status
+        command: "nmcli device status"
+      - name: Connection list
+        command: "nmcli connection show"
+
+  - id: tshark-conversations
+    name: tshark Conversations
+    category: network
+    subcategory: pcap-triage
+    priority: recommended
+    description: PCAP conversation and endpoint summaries using tshark.
+    command: tshark
+    offline: true
+    recipes:
+      - name: IP conversations
+        command: "tshark -r <capture.pcapng> -q -z conv,ip"
+      - name: Endpoints
+        command: "tshark -r <capture.pcapng> -q -z endpoints,ip"
+
+  - id: subfinder
+    name: Subfinder
+    category: osint
+    subcategory: domain-discovery
+    priority: recommended
+    description: Passive subdomain discovery for owned or authorised domains.
+    command: subfinder
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Passive domain discovery
+        command: "subfinder -d <authorised-domain> -silent"
+
+  - id: dnsx
+    name: dnsx
+    category: osint
+    subcategory: dns-enrichment
+    priority: recommended
+    description: Resolve and enrich authorised DNS asset lists.
+    command: dnsx
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Resolve list
+        command: "dnsx -l <domains.txt> -a -resp"
+
+  - id: httpx
+    name: httpx
+    category: osint
+    subcategory: web-enrichment
+    priority: recommended
+    description: Probe known authorised web endpoints for status, title and technology metadata.
+    command: httpx
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Probe URL list
+        command: "httpx -l <urls.txt> -status-code -title -tech-detect"
+
+  - id: sherlock
+    name: Sherlock
+    category: osint
+    subcategory: username-research
+    priority: optional
+    description: Public username presence research across supported services.
+    command: sherlock
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Username search
+        command: "sherlock <username>"
+
+  - id: theharvester
+    name: theHarvester
+    category: osint
+    subcategory: public-footprint
+    priority: recommended
+    description: Public-source domain footprint collection for authorised investigations.
+    command: theHarvester
+    offline: false
+    authorised_use_only: true
+    recipes:
+      - name: Domain footprint
+        command: "theHarvester -d <authorised-domain> -b all"
+
+  - id: jq-network
+    name: jq Network Triage
+    category: network
+    subcategory: data-processing
+    priority: core
+    description: Parse JSON-formatted network and sensor outputs with jq.
+    command: jq
+    offline: true
+    recipes:
+      - name: Stream compact JSON
+        command: "jq -c . <input.json>"

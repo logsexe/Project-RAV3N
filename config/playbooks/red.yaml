@@ -1,0 +1,69 @@
+schema_version: 1
+
+playbooks:
+  - id: authorised-web-baseline
+    name: Authorised Web Baseline
+    category: red
+    description: Low-impact web application baseline for an owned or explicitly authorised target.
+    steps:
+      - name: Confirm scope
+        description: Record the target, authorisation and excluded paths before testing.
+      - name: Technology fingerprint
+        tool: whatweb
+        command: whatweb https://<authorised-host>
+      - name: TLS review
+        tool: sslyze
+        command: sslyze <authorised-host>:443
+      - name: Common service scan
+        tool: nmap
+        command: nmap --top-ports 100 -sV <authorised-host>
+      - name: Content discovery
+        description: Use an approved wordlist and keep request volume appropriate for the target.
+        tool: ffuf
+        command: ffuf -w <wordlist> -u https://<authorised-host>/FUZZ
+      - name: Template validation
+        description: Run approved Nuclei templates only within scope.
+        tool: nuclei
+        command: nuclei -u https://<authorised-host>
+      - name: Record findings
+        description: Capture evidence, affected paths and remediation notes in the operation.
+
+  - id: tls-configuration-review
+    name: TLS Configuration Review
+    category: red
+    description: Review certificate and TLS configuration on an authorised endpoint.
+    steps:
+      - name: Certificate negotiation
+        tool: openssl-sclient
+        command: openssl s_client -connect <authorised-host>:443 -servername <authorised-host>
+      - name: SSLyze review
+        tool: sslyze
+        command: sslyze <authorised-host>:443
+      - name: testssl review
+        tool: testssl
+        command: testssl.sh <authorised-host>:443
+      - name: Record configuration
+        description: Note protocol support, certificate issues and remediation recommendations.
+
+  - id: owned-domain-attack-surface
+    name: Owned Domain Attack Surface
+    category: red
+    description: Passive-first attack-surface inventory for a domain you own or are authorised to assess.
+    steps:
+      - name: Confirm domain scope
+        description: Record the authorised root domain and any exclusions.
+      - name: Passive subdomains
+        tool: subfinder
+        command: subfinder -d <authorised-domain> -silent
+      - name: Resolve names
+        tool: dnsx
+        command: dnsx -l <domains.txt> -a -resp
+      - name: Probe web services
+        tool: httpx
+        command: httpx -l <urls.txt> -status-code -title -tech-detect
+      - name: Service validation
+        description: Review a selected authorised host with Nmap.
+        tool: nmap
+        command: nmap -sV <authorised-host>
+      - name: Record assets
+        description: Add confirmed hosts, IPs and URLs to the asset engine before any deeper testing.

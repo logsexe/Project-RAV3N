@@ -1,0 +1,68 @@
+schema_version: 2
+
+tools:
+  - id: ip-neighbour
+    name: IP Neighbour Table
+    category: network
+    subcategory: discovery
+    priority: core
+    description: Review local neighbour-cache entries and MAC addresses known to RVN-01.
+    command: ip
+    offline: true
+    recipes:
+      - name: Neighbour table
+        command: "ip neigh"
+      - name: Interface summary
+        command: "ip -br addr"
+      - name: Route table
+        command: "ip route"
+
+  - id: nmap-local-discovery
+    name: Nmap Local Discovery
+    category: network
+    subcategory: discovery
+    priority: core
+    description: Discover responding devices and inspect selected hosts on a network the operator owns or is authorised to assess.
+    command: nmap
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: Discover authorised subnet
+        description: Host discovery only; operator supplies and reviews the local authorised CIDR before execution.
+        command: "nmap -sn <authorised-subnet>"
+      - name: Inspect selected host
+        description: Identify listening services and versions on one operator-selected authorised device.
+        command: "nmap -sV <authorised-target>"
+      - name: Common ports on selected host
+        description: Inspect the 100 most common TCP ports on one authorised target.
+        command: "nmap --top-ports 100 <authorised-target>"
+      - name: OS estimate
+        description: Heuristic OS fingerprinting for one authorised target; requires elevated privileges.
+        command: "sudo nmap -O <authorised-target>"
+
+  - id: reverse-dns-local
+    name: Reverse DNS Lookup
+    category: network
+    subcategory: dns
+    priority: recommended
+    description: Request reverse-DNS naming information for a selected local IP address where the network provides it.
+    command: dig
+    offline: false
+    recipes:
+      - name: Reverse lookup
+        command: "dig -x <authorised-target>"
+
+  - id: http-header-inspect
+    name: HTTP Header Inspect
+    category: network
+    subcategory: service-inspection
+    priority: recommended
+    description: Inspect response headers from an HTTP or HTTPS service on an operator-selected authorised device.
+    command: curl
+    offline: true
+    authorised_use_only: true
+    recipes:
+      - name: HTTP headers
+        command: "curl -I http://<authorised-target>"
+      - name: HTTPS headers
+        command: "curl -k -I https://<authorised-target>"

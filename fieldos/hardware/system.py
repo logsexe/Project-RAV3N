@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import shutil
@@ -48,7 +49,14 @@ class SystemTelemetryProvider:
     No optional Python packages are required. On Raspberry Pi OS this reads
     sysfs and common command-line interfaces. Missing hardware is reported as
     NOT PRESENT rather than causing FIELD//OS to fail.
+
+    Mesh detection is intentionally conservative. Generic USB/ACM serial ports
+    are not treated as Meshtastic hardware because RVN-01 may also expose GPS,
+    debug adapters, microcontrollers, or other serial peripherals. An operator
+    can explicitly bind a mesh device with FIELDOS_MESH_DEVICE.
     """
+
+    MESH_DEVICE_ENV = "FIELDOS_MESH_DEVICE"
 
     def read(self) -> Telemetry:
         return Telemetry(
@@ -110,41 +118,99 @@ class SystemTelemetryProvider:
         return -1
 
     def _network_status(self) -> str:
+        """Report an interface as ready only when it has a usable IP address.
+
+        FIELD//OS deliberately avoids an external connectivity probe so an
+        isolated field LAN can still be considered usable. A physical link with
+        no address is reported separately and remains degraded in the UI.
+        """
+        if shutil.which("ip"):
+            output = _run_text(["ip", "-j", "address", "show", "up"])
+            if output:
+                try:
+                    records = json.loads(output)
+                except (json.JSONDecodeError, TypeError):
+                    records = []
+                link_only = False
+                link_local = False
+                for record in records if isinstance(records, list) else []:
+                    name = str(record.get("ifname", ""))
+                    if not name or name == "lo":
+                        continue
+                    link_only = True
+                    for addr in record.get("addr_info", []) or []:
+                        local = str(addr.get("local", ""))
+                        scope = str(addr.get("scope", ""))
+                        if not local:
+                            continue
+                        if scope == "global":
+                            return name.upper()
+                        if scope == "link":
+                            link_local = True
+                if link_local:
+                    return "LINK LOCAL"
+                if link_only:
+                    return "NO ADDRESS"
+
         sys_net = Path("/sys/class/net")
         if sys_net.exists():
-            active: list[str] = []
             for iface in sorted(sys_net.iterdir()):
                 if iface.name == "lo":
                     continue
-                state = _read_text(iface / "operstate")
-                if state == "up":
-                    active.append(iface.name)
-            if active:
-                return ",".join(active[:2]).upper()
+                if _read_text(iface / "operstate") == "up":
+                    return "LINK UP"
+            return "DISCONNECTED"
+
         try:
             names = [name for _, name in socket.if_nameindex() if name.lower() not in {"lo", "loopback"}]
-            return names[0].upper() if names else "DISCONNECTED"
+            return "UNKNOWN" if names else "DISCONNECTED"
         except OSError:
             return "DISCONNECTED"
 
     def _gps_status(self) -> str:
+        """Report READY only when gpsd exposes a 2D/3D TPV fix.
+
+        A running gpsd daemon is not itself a location fix. gpspipe may emit
+        VERSION, DEVICES or TPV mode=1 records while no receiver has a usable
+        solution, so FIELD//OS keeps GPS degraded until TPV mode >= 2.
+        """
         if shutil.which("gpspipe"):
-            output = _run_text(["gpspipe", "-w", "-n", "1"], timeout=2.0)
-            if '"class":"TPV"' in output or '"class": "TPV"' in output:
-                return "READY"
-            if output:
+            output = _run_text(["gpspipe", "-w", "-n", "5"], timeout=2.0)
+            saw_tpv = False
+            for line in output.splitlines():
+                try:
+                    record = json.loads(line)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if record.get("class") != "TPV":
+                    continue
+                saw_tpv = True
+                try:
+                    mode = int(record.get("mode", 0))
+                except (TypeError, ValueError):
+                    mode = 0
+                if mode >= 2:
+                    return "READY"
+            if output or saw_tpv:
                 return "NO FIX"
-        if shutil.which("systemctl"):
-            if _run_text(["systemctl", "is-active", "gpsd"]) == "active":
-                return "GPSD"
+
+        if shutil.which("systemctl") and _run_text(["systemctl", "is-active", "gpsd"]) == "active":
+            return "NO FIX"
         return "NOT PRESENT"
 
     def _mesh_status(self) -> str:
+        # A working Meshtastic CLI is a strong capability signal and avoids
+        # guessing which serial peripheral belongs to the mesh subsystem.
         if shutil.which("meshtastic"):
             return "CLI READY"
-        serial_candidates = list(Path("/dev").glob("ttyACM*")) + list(Path("/dev").glob("ttyUSB*"))
-        if serial_candidates:
-            return "SERIAL"
+
+        configured = os.environ.get(self.MESH_DEVICE_ENV, "").strip()
+        if configured:
+            device = Path(configured).expanduser()
+            if device.exists():
+                return "CONFIGURED"
+            return "NOT PRESENT"
+
         return "NOT PRESENT"
 
 

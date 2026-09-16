@@ -1,117 +1,44 @@
-# PROJECT RAV3N
+# RAVEN // RVN-01
 
-> **RAVEN // RVN-01**  
-> **FIELD OPERATIONS TERMINAL**  
-> **HW REV A // FIELD//OS V1.0**
+**Rugged Raspberry Pi 5 field computer running FIELD//OS.**
 
-Project RAV3N is a rugged, modular Raspberry Pi 5 field-computing platform combining cyber-security, networking, DFIR, communications, navigation, RF and hardware-lab capabilities in a portable field terminal.
+RAVEN is an offline-first field-computing platform combining a Pi 5 hardware build with **FIELD//OS**, a 7-inch graphical operator environment, for communications, navigation, receive-only RF, local networking, offline knowledge, operations and hardware awareness.
 
-## FIELD//OS V1.0
+> Development hardware. Use radio, network and security capabilities only where lawful and authorised.
 
-FIELD//OS is the keyboard-first operator environment for RVN-01. It is designed around the physical 7-inch 800×480 display and uses progressive full-screen views rather than a desktop dashboard.
+## Scope
 
-Primary workflow:
+- **Offline-first**: every feature works without Internet access; optional hardware (GPS, SDR, mesh) enhances FIELD//OS but its absence must never prevent it from starting — missing modules report `NOT PRESENT` rather than failing.
+- **Operator-focused appliance**: a single full-screen application with a fixed 9-tile home screen, not a conventional desktop.
+- **Explicit control**: radio, network and shell actions are operator-initiated, never automatic.
 
-`HOME -> MODULE -> TOOL -> RECIPE -> TERMINAL`
+AI/ASSIST (local LLM integration) is implemented at the adapter level (`fieldos/offline_ai.py`) but not yet wired into the UI — deferred behind the offline knowledge library and hardware commissioning.
 
-V1 software includes:
+## FIELD//OS
 
-- BLUE / RED / NETWORK / FORENSICS / FIELD / COMMS / HARDWARE / RF / UTILITIES libraries
-- Curated tool manifests with installed-state detection and operator command recipes
-- Full-screen local terminal with multiple sessions, history and staged recipe commands
-- Persistent terminal working-directory changes with `cd`
-- `Ctrl+C` interruption for a running FIELD//OS command process
-- Automatic command transcript capture into the active operation
-- Persistent operations/cases with notes, commands, scans, captures, evidence and exports folders
-- ZIP export snapshots for the active operation
-- Network Triage, Windows IR, Evidence Intake, Wireless Survey and RF Observation playbooks
-- Persistent favourites and recent tools
-- Bundled offline knowledge and combined global search
-- Optional indexing of local SquidSec CyberDeck, BlueTeam-Tools and RedTeam-Tools checkouts
-- Real best-effort system telemetry with safe fallbacks when hardware is absent
-- Network-interface discovery
-- gpsd/gpspipe readiness detection
-- Meshtastic CLI / serial readiness detection
-- Battery/sysfs, storage and CPU-temperature telemetry where exposed by the host
-- Five low-light themes: Phosphor, Amber CRT, Ice Blue, Red Alert and Monochrome
-- `fieldos-check` host/hardware compatibility report
-- Raspberry Pi / Debian bootstrap script and tty1 appliance-style systemd service
-- Cross-platform CI for Python 3.11 and 3.12 on Linux and Windows
+The home screen is intentionally limited to **9 primary applications**:
 
-Hardware-dependent capabilities report `NOT PRESENT`, `NO FIX`, `SERIAL`, or similar status rather than preventing FIELD//OS from starting.
+| Application | Purpose |
+| --- | --- |
+| **RADIO** | Receive-only SDR and spectrum |
+| **NAVIGATION** | Offline maps, GPS, waypoints and tracks |
+| **MESH** | Meshtastic nodes and operator-controlled messaging |
+| **NETWORK** | Local interfaces, devices and authorised diagnostics |
+| **OPS** | Operations, evidence and timeline |
+| **LIBRARY** | Categorised offline knowledge and references |
+| **FILES** | Local storage and operation files |
+| **TERMINAL** | Explicit operator-controlled shell |
+| **RVN-01** | System, hardware, power and service health |
 
-## Controls
+### LIBRARY
 
-- `Up / Down` — navigate
-- `Right / Enter` — open/select/stage
-- `Left / Esc` — back
-- `/` — global search
-- `K` — offline knowledge
-- `F` — favourites; on a tool page, toggle favourite
-- `R` — recent tools
-- `F1` — help
-- `F2` — terminal
-- `F3` — operations/sessions
-- `F4` — system status
-- `F5` — operation notes
-- `F9` — playbooks
-- `F10` — cycle theme
-- `Ctrl+Q` — quit
+Structured offline knowledge, searchable across sections: `RAVEN` · `RADIO` · `NAVIGATION` · `COMMS` · `CYBER` · `COMPUTING` · `EMERGENCY` · `MEDICAL` · `REPAIR` · `SURVIVAL` · `TRAVEL` · `GENERAL`. Supports local articles, operator-selected documentation and companion Kiwix/ZIM collections. Bootstrap supported open-source sources with `bash scripts/bootstrap-knowledge.sh` — see [Offline Knowledge Sources](docs/KNOWLEDGE-SOURCES.md).
 
-Inside the terminal:
+### RVN-01
 
-- `Tab` / `Shift+Tab` — next / previous terminal
-- `F6` — new terminal
-- `F7` — close terminal
-- `F8` — clear terminal
-- `Ctrl+C` — request termination of the running command
+Live system-health view: CPU/temperature/memory/storage, power and throttle state, USB and attached hardware, GPS/SDR/mesh/audio readiness, Bluetooth and network state, SSH/mDNS connectivity, and FIELD//OS service status.
 
-Inside Operations, `N` creates a new operation and `E` exports the active operation. Inside Notes, `N` adds a timestamped note.
-
-## Runtime data
-
-Default runtime root:
-
-```text
-~/.fieldos/
-├─ state.json
-├─ exports/
-└─ sessions/
-   └─ FIELD-001/
-      ├─ metadata.json
-      ├─ notes/
-      ├─ commands/
-      ├─ scans/
-      ├─ captures/
-      ├─ evidence/
-      └─ exports/
-```
-
-Set `FIELDOS_DATA_DIR` to override the runtime root.
-
-## Offline knowledge
-
-Bundled reference content lives in `config/knowledge/core.yaml`.
-
-To index local documentation/repository checkouts:
-
-Windows PowerShell:
-
-```powershell
-$env:FIELDOS_KNOWLEDGE_PATHS="C:\Tools\CyberDeck;C:\Tools\BlueTeam-Tools;C:\Tools\RedTeam-Tools"
-fieldos
-```
-
-Linux:
-
-```bash
-export FIELDOS_KNOWLEDGE_PATHS="$HOME/tools/CyberDeck:$HOME/tools/BlueTeam-Tools:$HOME/tools/RedTeam-Tools"
-fieldos
-```
-
-FIELD//OS indexes local reference content only; it does not automatically install every tool referenced by those repositories.
-
-## Development / Windows run
+## Quick start (development)
 
 Requires Python 3.11+.
 
@@ -119,11 +46,19 @@ Requires Python 3.11+.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
-fieldos-check
-fieldos
+fieldos --windowed
 ```
 
-## RVN-01 / Raspberry Pi install
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+fieldos --windowed
+```
+
+Drop `--windowed` to run full-screen, as it runs on RVN-01. Run the test suite with `python -m unittest discover -s tests`.
+
+## RVN-01 install
 
 On Raspberry Pi OS / Debian ARM64:
 
@@ -131,49 +66,62 @@ On Raspberry Pi OS / Debian ARM64:
 git clone https://github.com/logsexe/Project-RAV3N.git
 cd Project-RAV3N
 sudo bash scripts/install-rvn01.sh "$USER"
-/opt/fieldos/.venv/bin/fieldos-check
 ```
 
-When the display, keyboard and tty1 behaviour have been physically validated, enable appliance boot:
+See [scripts/](scripts/) for appliance-mode (boot-to-FIELD//OS) install/removal and hardware-check helpers, and [deploy/](deploy/) for the corresponding systemd units.
 
-```bash
-sudo systemctl disable getty@tty1.service
-sudo systemctl enable fieldos@$USER.service
-sudo systemctl start fieldos@$USER.service
+## Runtime data
+
+```text
+~/.fieldos/
+├─ state.json
+├─ exports/
+└─ sessions/<OPERATION-ID>/
+   ├─ metadata.json
+   ├─ notes/  commands/  scans/  captures/  evidence/  exports/
 ```
 
-The installer intentionally does not bulk-install security, SDR, GNSS or Meshtastic tooling. Commission each hardware/software module deliberately.
+Override the root with `FIELDOS_DATA_DIR`; index local reference-repo checkouts with `FIELDOS_KNOWLEDGE_PATHS`.
 
-## Current hardware baseline
+## Hardware
 
-- Tactix Tough Case — Medium
-- 65% wired mechanical keyboard
-- Raspberry Pi 5 8 GB
-- Raspberry Pi Active Cooler
-- Raspberry Pi M.2 HAT+
-- Freenove 7-inch touchscreen
-- Anker 4-port USB 3.0 hub
-- Patriot 256 GB microSDXC
-- Flipper Zero — removable field instrument
+Current platform baseline: Raspberry Pi 5 (8 GB), Active Cooler, 7-inch 800×480 touchscreen, local storage, powered USB expansion, Bluetooth, and optional GNSS / Meshtastic / RTL-SDR / audio modules.
 
-## Repository layout
+See the [RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md) for the current confirmed inventory and commissioning order.
 
-- `fieldos/` — FIELD//OS source
-- `config/tools/` — tool definitions and command recipes
-- `config/playbooks/` — guided operator workflows
-- `config/knowledge/` — bundled offline knowledge
-- `deploy/` — appliance/service configuration
-- `scripts/` — RVN-01 bootstrap tooling
-- `docs/` — architecture, specifications and commissioning documentation
-- `hardware/` — CAD, drawings, printable parts and BOM
-- `assets/` — branding, boot assets and renders
+## Current focus
 
-## Release state
+1. Finish the FIELD//OS LIBRARY experience
+2. Commission arriving hardware modules
+3. Expand RVN-01 system-health telemetry
+4. Refine appliance boot and recovery behaviour
+5. Finalise the physical RVN-01 layout
 
-**FIELD//OS software baseline: V1.0.0**
+## Repository
 
-The software architecture is now considered feature-complete for RVN-01 V1. Remaining work is physical commissioning: validating the Pi, touchscreen, keyboard, power system, cooling, GNSS, Meshtastic, dedicated Wi-Fi and SDR hardware on the actual unit.
+```text
+fieldos/      FIELD//OS application and hardware adapters
+config/       knowledge and configuration manifests
+docs/         architecture, install and commissioning guides
+deploy/       appliance and service configuration
+scripts/      setup, diagnostics and knowledge tooling
+hardware/     BOM and physical design material
+tests/        automated tests
+```
+
+## Documentation
+
+- [RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md)
+- [RVN-01 Commissioning](docs/RVN-01-COMMISSIONING.md)
+- [Offline Knowledge Sources](docs/KNOWLEDGE-SOURCES.md)
+- [Module Installation Guide](docs/MODULE-INSTALL-GUIDE.md)
+- [FIELD//OS Architecture](docs/FIELD-OS-ARCHITECTURE.md)
+- [Roadmap](docs/ROADMAP.md)
+
+## License
+
+[Apache License 2.0](LICENSE)
 
 ---
 
-`RAVEN // RVN-01 // FIELD//OS V1.0 // DEVELOPMENT UNIT`
+**RAVEN // RVN-01 // FIELD//OS // OFFLINE FIELD COMPUTER**

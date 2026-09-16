@@ -7,6 +7,7 @@ from pathlib import Path
 from fieldos.airgap import AirgapController
 from fieldos.auth import OperatorAuth
 from fieldos.engine import OperationsEngine
+from fieldos.integrations import IntegrationHub
 from fieldos.maps import OfflineMapStore
 from fieldos.operations import OperationSessionManager
 from fieldos.profiles import PROFILES, ProfileManager
@@ -54,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify = evidence_sub.add_parser("verify")
     verify.add_argument("id")
     verify.add_argument("--encrypted", action="store_true")
+
+    importer = sub.add_parser("import", help="Import tool output into the operation engine")
+    importer.add_argument("adapter", choices=("nmap", "yara", "zeek", "meshtastic", "gnss", "osint-json"))
+    importer.add_argument("path")
+    importer.add_argument("--ingest-source", action="store_true", help="Preserve imported output as evidence")
 
     maps = sub.add_parser("maps")
     maps.add_argument("action", choices=("list",))
@@ -122,6 +128,15 @@ def main() -> int:
         else:
             vault = _vault_from_pin(auth) if args.encrypted else None
             print(f"VERIFY // {args.id} // {'PASS' if engine.verify_evidence(args.id, vault=vault) else 'FAIL'}")
+        return 0
+
+    if args.command == "import":
+        source = Path(args.path)
+        result = IntegrationHub(engine).import_file(operation_id, args.adapter, source)
+        print(f"IMPORT // {result.adapter.upper()} // ASSETS {result.assets} // EVENTS {result.events}")
+        if args.ingest_source:
+            item = engine.ingest_evidence(operation_id, source, operation_path=manager.session_path(), metadata={"adapter": args.adapter, "role": "tool-output"})
+            print(f"EVIDENCE // {item.id} // SHA256 {item.sha256}")
         return 0
 
     if args.command == "maps":

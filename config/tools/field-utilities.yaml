@@ -1,0 +1,222 @@
+schema_version: 2
+
+tools:
+  - id: ip
+    name: iproute2
+    category: field
+    subcategory: system
+    priority: core
+    description: Inspect local interfaces, addresses and routes.
+    command: ip
+    offline: true
+    recipes:
+      - name: Address summary
+        command: "ip -brief addr"
+      - name: Route summary
+        command: "ip route"
+
+  - id: hostnamectl
+    name: hostnamectl
+    category: field
+    subcategory: system
+    priority: core
+    description: Inspect hostname, operating system and machine identity.
+    command: hostnamectl
+    offline: true
+    recipes:
+      - name: Host identity
+        command: "hostnamectl"
+
+  - id: lsblk
+    name: lsblk
+    category: field
+    subcategory: storage
+    priority: core
+    description: Inspect block devices, filesystems and mount points.
+    command: lsblk
+    offline: true
+    recipes:
+      - name: Storage topology
+        command: "lsblk -f"
+
+  - id: df
+    name: df
+    category: field
+    subcategory: storage
+    priority: core
+    description: Report mounted filesystem capacity and usage.
+    command: df
+    offline: true
+    recipes:
+      - name: Human-readable usage
+        command: "df -h"
+
+  - id: free
+    name: free
+    category: field
+    subcategory: system
+    priority: core
+    description: Report system memory usage.
+    command: free
+    offline: true
+    recipes:
+      - name: Memory summary
+        command: "free -h"
+
+  - id: vcgencmd
+    name: vcgencmd
+    category: hardware
+    subcategory: raspberry-pi
+    priority: core
+    description: Inspect Raspberry Pi firmware telemetry such as temperature and throttling state.
+    command: vcgencmd
+    offline: true
+    recipes:
+      - name: CPU temperature
+        command: "vcgencmd measure_temp"
+      - name: Throttle state
+        command: "vcgencmd get_throttled"
+
+  - id: rfkill
+    name: rfkill
+    category: field
+    subcategory: isolation
+    priority: core
+    description: Inspect Linux radio blocking state for Wi-Fi and Bluetooth.
+    command: rfkill
+    offline: true
+    recipes:
+      - name: Radio state
+        command: "rfkill list"
+
+  - id: systemctl
+    name: systemctl
+    category: field
+    subcategory: services
+    priority: core
+    description: Inspect systemd service state on RVN-01.
+    command: systemctl
+    offline: true
+    recipes:
+      - name: Failed units
+        command: "systemctl --failed"
+
+  - id: screen
+    name: GNU Screen
+    category: comms
+    subcategory: serial
+    priority: optional
+    description: Serial and persistent terminal utility for field devices.
+    command: screen
+    offline: true
+    recipes:
+      - name: Serial console
+        command: "screen /dev/ttyUSB0 115200"
+
+  - id: bluetoothctl
+    name: bluetoothctl
+    category: comms
+    subcategory: bluetooth
+    priority: recommended
+    description: Inspect and manage local Bluetooth controller state.
+    command: bluetoothctl
+    offline: true
+    recipes:
+      - name: Controller info
+        command: "bluetoothctl show"
+
+  - id: python
+    name: Python
+    category: utilities
+    subcategory: scripting
+    priority: core
+    description: Local Python interpreter for operator scripts and data processing.
+    command: python
+    offline: true
+    recipes:
+      - name: Version
+        command: "python --version"
+
+  - id: base64
+    name: base64
+    category: utilities
+    subcategory: transform
+    priority: core
+    description: Local Base64 encoding and decoding utility.
+    command: base64
+    offline: true
+    recipes:
+      - name: Decode file
+        command: "base64 -d <input.b64> > <output.bin>"
+
+  - id: hexdump
+    name: hexdump
+    category: utilities
+    subcategory: hex
+    priority: core
+    description: Inspect binary data in hexadecimal form.
+    command: hexdump
+    offline: true
+    recipes:
+      - name: Canonical dump
+        command: "hexdump -C <file> | head"
+
+  - id: unzip
+    name: unzip
+    category: utilities
+    subcategory: archive
+    priority: core
+    description: Inspect and extract ZIP archives locally.
+    command: unzip
+    offline: true
+    recipes:
+      - name: List archive
+        command: "unzip -l <archive.zip>"
+
+  - id: tar
+    name: tar
+    category: utilities
+    subcategory: archive
+    priority: core
+    description: Create and inspect TAR archives for field exports.
+    command: tar
+    offline: true
+    recipes:
+      - name: List archive
+        command: "tar -tf <archive.tar>"
+
+  - id: rsync
+    name: rsync
+    category: utilities
+    subcategory: transfer
+    priority: core
+    description: Copy and synchronise local or remote files with metadata preservation.
+    command: rsync
+    offline: true
+    recipes:
+      - name: Local copy preview
+        command: "rsync -avhn <source>/ <destination>/"
+
+  - id: tree
+    name: tree
+    category: utilities
+    subcategory: filesystem
+    priority: recommended
+    description: Display directory trees for evidence and project navigation.
+    command: tree
+    offline: true
+    recipes:
+      - name: Two-level tree
+        command: "tree -L 2 <directory>"
+
+  - id: watch
+    name: watch
+    category: utilities
+    subcategory: monitoring
+    priority: recommended
+    description: Repeat a non-interactive status command at a fixed interval.
+    command: watch
+    offline: true
+    recipes:
+      - name: Network state
+        command: "watch -n 2 'ip -brief addr'"
