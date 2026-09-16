@@ -3,10 +3,25 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime
 import json
+import math
 from pathlib import Path
 import sqlite3
 
 from fieldos.operations import _data_root
+
+
+def bearing_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> tuple[float, float]:
+    """Great-circle distance in metres and initial bearing in degrees, point 1 to point 2."""
+    radius_m = 6371000.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    distance = 2 * radius_m * math.asin(min(1.0, math.sqrt(a)))
+    x = math.sin(dlambda) * math.cos(phi2)
+    y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda)
+    bearing = (math.degrees(math.atan2(x, y)) + 360) % 360
+    return distance, bearing
 
 
 @dataclass(slots=True)

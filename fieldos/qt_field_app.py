@@ -24,9 +24,11 @@ from PySide6.QtWidgets import (
 
 from .engine import OperationsEngine
 from .live_services import meshtastic_nodes, network_interfaces, network_neighbours
+from .maps import OfflineMapStore, Waypoint, bearing_distance
 from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
 from .qt_app import STYLE, _display_summary
+from .visual_surfaces import MapCanvas
 
 
 FIELD_APPS = (
@@ -75,7 +77,6 @@ class FieldOSWindow(V29FieldOSWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("RAVEN // FIELD//OS V2.9")
-        self.pages["NAVIGATION"] = self.pages["MAP"]
         self.pages["RVN-01"] = self.pages["SYSTEM"]
         self.tak_page = self.pages.get("TAK")
 
@@ -90,6 +91,12 @@ class FieldOSWindow(V29FieldOSWindow):
         self.pages["OPS"] = ops_page
         self._populate_operations()
         self._refresh_ops()
+
+        self.map_store = OfflineMapStore()
+        self._waypoints_cache: list[Waypoint] = []
+        self._replace_page("MAP", self._navigation_page())
+        self.pages["NAVIGATION"] = self.pages["MAP"]
+        self._refresh_waypoints()
 
         self._replace_page("NETWORK", self._network_ops_page())
         self._replace_page("MESH", self._mesh_ops_page())
@@ -111,7 +118,6 @@ class FieldOSWindow(V29FieldOSWindow):
         self.launcher = self._field_launcher()
         self.stack.insertWidget(index, self.launcher)
 
-        self._rename_page("NAVIGATION", "NAVIGATION", "Offline map // GPS // waypoints // tracks // TAK")
         self._rename_page("RVN-01", "RVN-01", "System // hardware // storage // power // services")
 
     def _ops_page(self) -> QWidget:
@@ -327,6 +333,81 @@ class FieldOSWindow(V29FieldOSWindow):
             else:
                 self.mesh_nodes_list.addItem("NO NODES REPORTED")
 
+    def _navigation_page(self) -> QWidget:
+        page, layout = self._shell("NAVIGATION", "Offline map // live GNSS overlay // waypoints")
+        self.map_canvas = MapCanvas()
+        layout.addWidget(self.map_canvas, 2)
+        self.map_status = QLabel("GPS         PROBING")
+        self.map_status.setObjectName("body")
+        layout.addWidget(self.map_status)
+
+        body = QHBoxLayout()
+        self.waypoints_list = QListWidget()
+        self.waypoints_list.currentRowChanged.connect(self._show_waypoint_detail)
+        body.addWidget(self.waypoints_list, 1)
+        self.waypoint_detail = QLabel("SELECT A WAYPOINT")
+        self.waypoint_detail.setObjectName("body")
+        self.waypoint_detail.setWordWrap(True)
+        body.addWidget(self.waypoint_detail, 1)
+        layout.addLayout(body, 1)
+
+        row = QHBoxLayout()
+        add_wp = QPushButton("ADD WAYPOINT (CURRENT FIX)")
+        add_wp.clicked.connect(self._add_waypoint)
+        row.addWidget(add_wp)
+        refresh = QPushButton("REFRESH GPS")
+        refresh.clicked.connect(lambda: self.refresh_module("MAP"))
+        row.addWidget(refresh)
+        companion = QPushButton("OPEN QMAPSHACK")
+        companion.clicked.connect(lambda: self.launch_first_service("MAP"))
+        row.addWidget(companion)
+        layout.addLayout(row)
+        self._back(layout)
+        return page
+
+    def _refresh_waypoints(self) -> None:
+        self._waypoints_cache = self.map_store.waypoints()
+        self.waypoints_list.clear()
+        for wp in self._waypoints_cache:
+            self.waypoints_list.addItem(f"{wp.id}  {wp.label}  ({wp.latitude:.5f}, {wp.longitude:.5f})")
+        self.map_canvas.set_waypoints([(wp.latitude, wp.longitude, wp.label) for wp in self._waypoints_cache])
+
+    def _show_waypoint_detail(self, row: int) -> None:
+        if row < 0 or row >= len(self._waypoints_cache):
+            self.waypoint_detail.setText("SELECT A WAYPOINT")
+            return
+        wp = self._waypoints_cache[row]
+        if self.map_canvas.latitude is not None and self.map_canvas.longitude is not None:
+            distance_m, bearing_deg = bearing_distance(
+                self.map_canvas.latitude, self.map_canvas.longitude, wp.latitude, wp.longitude
+            )
+            range_text = f"{distance_m:.0f} m @ {bearing_deg:.0f}° FROM CURRENT FIX"
+        else:
+            range_text = "NO CURRENT FIX // RANGE UNAVAILABLE"
+        self.waypoint_detail.setText(
+            f"{wp.label}\n\nID          {wp.id}\nLAT         {wp.latitude:.6f}\nLON         {wp.longitude:.6f}\n"
+            f"CREATED     {wp.created_at}\nOPERATION   {wp.operation_id or '--'}\n\n{range_text}"
+        )
+
+    def _add_waypoint(self) -> None:
+        if self.map_canvas.latitude is None or self.map_canvas.longitude is None:
+            self.footer.setText("RVN-01 // NAVIGATION // NO GPS FIX // CANNOT ADD WAYPOINT")
+            return
+        label, ok = QInputDialog.getText(self, "ADD WAYPOINT", "Label:")
+        if not ok or not label.strip():
+            return
+        item = self.map_store.add_waypoint(
+            self.map_canvas.latitude, self.map_canvas.longitude, label.strip(), self.operations.active.id
+        )
+        self.ops_engine.record_event(
+            self.operations.active.id,
+            "WAYPOINT",
+            f"{item.id} {item.label}",
+            metadata={"lat": item.latitude, "lon": item.longitude},
+        )
+        self._refresh_waypoints()
+        self.footer.setText(f"RVN-01 // NAVIGATION // WAYPOINT {item.id} ADDED")
+
     def _files_browser_page(self) -> QWidget:
         page, layout = self._shell("FILES", "Local storage // browse read-only")
         self.files_status = QLabel()
@@ -528,7 +609,7 @@ class FieldOSWindow(V29FieldOSWindow):
             self.footer.setText(f"RVN-01 // {name} // MODULE NOT PRESENT"); return
         self.stack.setCurrentWidget(page)
         self.footer.setText(f"RVN-01 // {name} // READY // ESC/BACK APPLICATIONS")
-        if name == "NAVIGATION": self.refresh_module("MAP")
+        if name == "NAVIGATION": self.refresh_module("MAP"); self._refresh_waypoints()
         elif name in {"RADIO", "MESH", "LIBRARY"}: self.refresh_module(name)
         elif name in {"NETWORK", "RVN-01"}: self.refresh_local_state()
         elif name == "OPS": self._refresh_ops()
