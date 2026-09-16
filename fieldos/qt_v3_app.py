@@ -95,6 +95,11 @@ class FieldOSWindow(V29FieldOSWindow):
     """FIELD//OS V3 — nine-tile launcher, offline library and RVN-01 health."""
 
     def __init__(self) -> None:
+        # Set before super().__init__(): the base classes' own __init__ calls
+        # _replace_page("MAP", ...) etc. during their construction, and since
+        # `self` is this most-derived class, that resolves to this class's
+        # override, which needs _retired_pages to already exist.
+        self._retired_pages: list[QWidget] = []
         super().__init__()
         self.setWindowTitle("RAVEN // FIELD//OS V3")
 
@@ -127,8 +132,12 @@ class FieldOSWindow(V29FieldOSWindow):
             self.stack.removeWidget(old)
             # Keep the inherited V2 page alive. Background probes and timers in
             # the V2.9 base class still hold references to child labels such as
-            # library_status and system_status. Deleting the page would leave
-            # those Python wrappers pointing at destroyed Qt objects.
+            # library_status and system_status. removeWidget() orphans `old`
+            # (parent becomes None), so without a real reference here Python
+            # GC collects it and PySide6 destroys its whole widget tree —
+            # including those labels — even though we intend to keep using
+            # them. self._retired_pages keeps that from happening.
+            self._retired_pages.append(old)
             self.pages[name] = page
             self.stack.insertWidget(index, page)
         else:
