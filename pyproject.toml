@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fieldos"
-version = "3.0.0"
+version = "3.0.1"
 description = "Graphical offline-first FIELD//OS environment for RAVEN RVN-01"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,7 +24,7 @@ all-python = [
 ]
 
 [project.scripts]
-fieldos = "fieldos.qt_v3_app:main"
+fieldos = "fieldos.qt_v3_health_app:main"
 
 [tool.setuptools.packages.find]
 include = ["fieldos*"]
