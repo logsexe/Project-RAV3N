@@ -11,15 +11,20 @@ from .visual_surfaces import MapCanvas, SpectrumCanvas
 
 
 class FieldOSWindow(BaseFieldOSWindow):
-    """FIELD//OS V2.6 visual navigation and receive-only RF surfaces."""
+    """FIELD//OS visual navigation and receive-only RF surfaces."""
 
     def __init__(self) -> None:
         super().__init__()
         self._replace_page("MAP", self._map_visual_page())
         self._replace_page("RADIO", self._radio_visual_page())
         self.preview_timer = QTimer(self)
-        self.preview_timer.timeout.connect(self.spectrum_canvas.advance_preview)
-        self.preview_timer.start(180)
+        self.preview_timer.timeout.connect(self._preview_tick)
+        # A lightweight watchdog replaces a permanent 5.5 Hz hidden animation.
+        self.preview_timer.start(500)
+
+    def _preview_tick(self) -> None:
+        if self.stack.currentWidget() is self.pages.get("RADIO") and not self.spectrum_canvas.live:
+            self.spectrum_canvas.advance_preview()
 
     def _replace_page(self, name: str, page: QWidget) -> None:
         old = self.pages[name]
@@ -72,8 +77,6 @@ class FieldOSWindow(BaseFieldOSWindow):
         self.footer.setText(f"RVN-01 // RADIO // {mhz:.3f} MHz // RX PREVIEW")
 
     def _collect_futures(self) -> None:
-        # Let the V2.4 collector update text/state first, then mirror live values
-        # into the native visual surfaces when a completed MAP/RADIO result exists.
         map_future = self.futures.get("MAP")
         radio_future = self.futures.get("RADIO")
         map_value = None
@@ -88,20 +91,17 @@ class FieldOSWindow(BaseFieldOSWindow):
         if map_value is not None:
             self.map_canvas.set_fix(map_value.latitude, map_value.longitude, map_value.track, map_value.state)
         if radio_value is not None:
-            # Hardware presence changes the surface label to live-ready. Actual IQ/FFT
-            # streaming is the next adapter layer; until then the graph remains an
-            # explicitly marked simulated preview rather than fabricated RF data.
             self.spectrum_canvas.live = False
             if radio_value.rtl_sdr:
                 self.footer.setText("RVN-01 // RADIO // RTL-SDR DETECTED // STREAM ADAPTER READY")
 
     def _tick(self) -> None:
         from datetime import datetime
-        self.top.setText(f"RAVEN // RVN-01     FIELD//OS 2.6 DEV     {datetime.now().strftime('%H:%M:%S')}")
+        self.top.setText(f"RAVEN // RVN-01     FIELD//OS     {datetime.now().strftime('%H:%M:%S')}")
 
 
 def main() -> int:
-    print("FIELD//OS V2.6 DEV // visual surfaces", flush=True); print(_display_summary(), flush=True)
+    print("FIELD//OS // visual surfaces", flush=True); print(_display_summary(), flush=True)
     if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True); return 2
     app = QApplication.instance() or QApplication(sys.argv); app.setStyleSheet(STYLE)
