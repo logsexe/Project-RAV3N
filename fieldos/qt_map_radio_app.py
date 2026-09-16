@@ -13,20 +13,51 @@ from .qt_app import STYLE, _display_summary
 
 
 class FieldOSWindow(VisualFieldOSWindow):
-    """FIELD//OS V2.7 with offline-map and live RTL-SDR adapters."""
+    """FIELD//OS V2.9 with demand-driven offline-map and RTL-SDR adapters."""
+
+    RADIO_ACTIVE_MS = 1300
+    RADIO_IDLE_MS = 12000
+    MAP_PACK_ACTIVE_MS = 15000
+    MAP_PACK_IDLE_MS = 60000
 
     def __init__(self) -> None:
         super().__init__()
-        self.map_pack = discover_mbtiles()[0] if discover_mbtiles() else None
+        packs = discover_mbtiles()
+        self.map_pack = packs[0] if packs else None
         self.map_zoom = 14
         self.last_map_center: tuple[float, float] | None = None
+
         self.radio_timer = QTimer(self)
-        self.radio_timer.timeout.connect(self.refresh_live_radio)
-        self.radio_timer.start(1300)
+        self.radio_timer.timeout.connect(self._radio_tick)
+        self.radio_timer.start(self.RADIO_IDLE_MS)
+
         self.map_pack_timer = QTimer(self)
-        self.map_pack_timer.timeout.connect(self.refresh_map_pack)
-        self.map_pack_timer.start(4000)
+        self.map_pack_timer.timeout.connect(self._map_pack_tick)
+        self.map_pack_timer.start(self.MAP_PACK_IDLE_MS)
+
+        # One initial discovery pass is enough. Subsequent work is demand-driven
+        # by the visible application or explicit operator refresh/tune actions.
         self.refresh_map_pack()
+
+    def _current_page_is(self, name: str) -> bool:
+        page = self.pages.get(name)
+        return page is not None and self.stack.currentWidget() is page
+
+    def _radio_tick(self) -> None:
+        active = self._current_page_is("RADIO")
+        wanted = self.RADIO_ACTIVE_MS if active else self.RADIO_IDLE_MS
+        if self.radio_timer.interval() != wanted:
+            self.radio_timer.setInterval(wanted)
+        if active:
+            self.refresh_live_radio()
+
+    def _map_pack_tick(self) -> None:
+        active = self._current_page_is("MAP") or self._current_page_is("NAVIGATION")
+        wanted = self.MAP_PACK_ACTIVE_MS if active else self.MAP_PACK_IDLE_MS
+        if self.map_pack_timer.interval() != wanted:
+            self.map_pack_timer.setInterval(wanted)
+        if active:
+            self.refresh_map_pack()
 
     def refresh_map_pack(self) -> None:
         packs = discover_mbtiles()
@@ -35,7 +66,7 @@ class FieldOSWindow(VisualFieldOSWindow):
             if hasattr(self, "map_canvas"):
                 self.map_canvas.set_background(None, "GRID // NO MBTILES")
             return
-        if self.last_map_center is not None:
+        if self.last_map_center is not None and "MAPTILES" not in self.futures:
             lat, lon = self.last_map_center
             self._submit(
                 "MAPTILES",
@@ -60,7 +91,7 @@ class FieldOSWindow(VisualFieldOSWindow):
         return zoom
 
     def refresh_live_radio(self) -> None:
-        if not hasattr(self, "spectrum_canvas"):
+        if not hasattr(self, "spectrum_canvas") or "RTLFFT" in self.futures:
             return
         center = self.spectrum_canvas.center_hz
         self._submit("RTLFFT", lambda: rtl_fft(center))
@@ -79,7 +110,7 @@ class FieldOSWindow(VisualFieldOSWindow):
             center = (map_value.latitude, map_value.longitude)
             moved = self.last_map_center is None or abs(center[0] - self.last_map_center[0]) > 0.00008 or abs(center[1] - self.last_map_center[1]) > 0.00008
             self.last_map_center = center
-            if moved and self.map_pack is not None:
+            if moved and self.map_pack is not None and "MAPTILES" not in self.futures:
                 self._submit(
                     "MAPTILES",
                     lambda: render_mbtiles_image(
@@ -127,11 +158,11 @@ class FieldOSWindow(VisualFieldOSWindow):
 
     def _tick(self) -> None:
         from datetime import datetime
-        self.top.setText(f"RAVEN // RVN-01     FIELD//OS 2.7 DEV     {datetime.now().strftime('%H:%M:%S')}")
+        self.top.setText(f"RAVEN // RVN-01     FIELD//OS 2.9     {datetime.now().strftime('%H:%M:%S')}")
 
 
 def main() -> int:
-    print("FIELD//OS V2.7 DEV // map + radio adapters", flush=True)
+    print("FIELD//OS V2.9 // efficiency pass", flush=True)
     print(_display_summary(), flush=True)
     if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True)
@@ -140,7 +171,7 @@ def main() -> int:
     app.setStyleSheet(STYLE)
     window = FieldOSWindow()
     window.show() if "--windowed" in sys.argv else window.showFullScreen()
-    print("FIELD//OS: Qt adapter window created", flush=True)
+    print("FIELD//OS: V2.9 graphical window created", flush=True)
     return app.exec()
 
 
