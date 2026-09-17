@@ -7,7 +7,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication
 
-from .map_radio_adapters import discover_mbtiles, render_mbtiles_image, rtl_fft
+from .map_radio_adapters import RtlSdrStream, discover_mbtiles, render_mbtiles_image, rtl_fft
 from .qt_visual_app import FieldOSWindow as VisualFieldOSWindow
 from .qt_app import STYLE, _display_summary, load_bundled_fonts
 
@@ -26,6 +26,18 @@ class FieldOSWindow(VisualFieldOSWindow):
         self.map_pack = packs[0] if packs else None
         self.map_zoom = 14
         self.last_map_center: tuple[float, float] | None = None
+
+        # `rtl_stream`, once opened, owns a dedicated background thread and
+        # an open RTL-SDR device handle (see RtlSdrStream in
+        # map_radio_adapters.py) -- it is not a QTimer and never runs on
+        # self.executor, so closeEvent() below has to stop it explicitly.
+        # Nothing during any ancestor's __init__ calls refresh_live_radio()
+        # or _radio_tick() (both are only reachable via radio_timer, started
+        # further down in this same method, or explicit operator actions
+        # like open_app("RADIO")/_tune_preview()), so it's safe to set this
+        # up here rather than before super().__init__().
+        self.rtl_stream: RtlSdrStream | None = None
+        self._rtl_stream_start_attempted = False
 
         self.radio_timer = QTimer(self)
         self.radio_timer.timeout.connect(self._radio_tick)
@@ -91,10 +103,36 @@ class FieldOSWindow(VisualFieldOSWindow):
         return zoom
 
     def refresh_live_radio(self) -> None:
-        if not hasattr(self, "spectrum_canvas") or "RTLFFT" in self.futures:
+        if not hasattr(self, "spectrum_canvas"):
             return
         center = self.spectrum_canvas.center_hz
-        self._submit("RTLFFT", lambda: rtl_fft(center))
+
+        # Prefer the continuous pyrtlsdr stream once it's up: retune it in
+        # place and just poll its latest bins (cheap -- a lock + list copy,
+        # no device I/O on this thread), instead of spawning a fresh
+        # rtl_sdr process this tick.
+        if self.rtl_stream is not None and self.rtl_stream.running:
+            self.rtl_stream.retune(center)
+            if "RTLFFT" not in self.futures:
+                self._submit("RTLFFT", self.rtl_stream.snapshot)
+            return
+
+        # Try to open the stream exactly once per window lifetime. This is
+        # deliberately not retried on a timer: with no confirmed RTL-SDR
+        # hardware to validate reconnect behavior against, a single
+        # permanent fallback to the one-shot subprocess path is the safer
+        # choice over polling a possibly-absent device every tick forever.
+        # A hot-plugged device won't be picked up without restarting
+        # FIELD//OS -- see the PR description for why this is an accepted
+        # trade-off for now.
+        if not self._rtl_stream_start_attempted and "RTLSTREAM" not in self.futures:
+            if self.rtl_stream is None:
+                self.rtl_stream = RtlSdrStream()
+            self._submit("RTLSTREAM", lambda stream=self.rtl_stream, c=center: stream.start(c))
+            return
+
+        if "RTLFFT" not in self.futures:
+            self._submit("RTLFFT", lambda: rtl_fft(center))
 
     def _collect_futures(self) -> None:
         map_future = self.futures.get("MAP")
@@ -104,6 +142,49 @@ class FieldOSWindow(VisualFieldOSWindow):
                 map_value = map_future.result()
             except Exception:
                 pass
+
+        # MAPTILES/RTLSTREAM/RTLFFT are keys qt_app.py's base
+        # _collect_futures() (called via super() a few lines down) doesn't
+        # recognize. That base method's per-key loop unconditionally does
+        # `del self.futures[key]` for *any* done future once it's inspected
+        # it, matched or not -- so reading self.futures.get(...) for these
+        # three *after* calling super() would already find them gone this
+        # same tick (this was a real, pre-existing bug: MAPTILES/RTLFFT
+        # results were being silently discarded here before this method's
+        # own code ever saw them, since super()'s generic loop always wins
+        # the race for a key it doesn't otherwise handle -- confirmed with a
+        # round trip through the real futures/timer machinery while adding
+        # RTLSTREAM below, not just by inspection). Peek and capture their
+        # results now, before super() runs, matching the MAP/RADIO pattern
+        # qt_visual_app.py already uses one tier up and the
+        # MESHNODES/MESHCONNECT pattern qt_field_app.py uses one tier down.
+        tile_future = self.futures.get("MAPTILES")
+        tile_done = tile_future is not None and tile_future.done()
+        tile_image = None
+        if tile_done:
+            try:
+                tile_image = tile_future.result()
+            except Exception:
+                tile_image = None
+
+        stream_future = self.futures.get("RTLSTREAM")
+        stream_done = stream_future is not None and stream_future.done()
+        stream_started = False
+        if stream_done:
+            try:
+                stream_started = stream_future.result()
+            except Exception:
+                stream_started = False
+
+        fft_future = self.futures.get("RTLFFT")
+        fft_done = fft_future is not None and fft_future.done()
+        fft_bins: list[float] = []
+        if fft_done:
+            try:
+                fft_bins = fft_future.result()
+            except Exception:
+                fft_bins = []
+
         super()._collect_futures()
 
         if map_value is not None and map_value.latitude is not None and map_value.longitude is not None:
@@ -123,33 +204,47 @@ class FieldOSWindow(VisualFieldOSWindow):
                     ),
                 )
 
-        tile_future = self.futures.get("MAPTILES")
-        if tile_future is not None and tile_future.done():
-            try:
-                image = tile_future.result()
-            except Exception:
-                image = None
-            if image is not None:
+        if tile_done:
+            if tile_image is not None:
                 label = f"MBTILES // {self.map_pack.name} // Z{self._effective_zoom()}" if self.map_pack else "MBTILES"
-                self.map_canvas.set_background(QPixmap.fromImage(image), label)
+                self.map_canvas.set_background(QPixmap.fromImage(tile_image), label)
                 self.footer.setText(f"RVN-01 // MAP // OFFLINE PACK {self.map_pack.name if self.map_pack else 'READY'}")
             elif self.map_pack is not None:
                 self.map_canvas.set_background(None, f"MBTILES // NO TILE @ Z{self._effective_zoom()}")
-            del self.futures["MAPTILES"]
 
-        fft_future = self.futures.get("RTLFFT")
-        if fft_future is not None and fft_future.done():
-            try:
-                bins = fft_future.result()
-            except Exception:
-                bins = []
-            if bins:
-                self.spectrum_canvas.set_spectrum(bins, live=True)
-                self.radio_status.setText("RX DEVICE   RTL-SDR LIVE\nFFT         256 BINS\nMODE        RECEIVE ONLY")
+        if stream_done:
+            self._rtl_stream_start_attempted = True
+            if not stream_started:
+                # Nothing worth holding onto -- the attempt already failed
+                # closed inside RtlSdrStream.start() (no pyrtlsdr, no
+                # device, an open error, ...). Every future tick falls
+                # straight through to the rtl_fft() one-shot path.
+                self.rtl_stream = None
+
+        if fft_done:
+            if fft_bins:
+                self.spectrum_canvas.set_spectrum(fft_bins, live=True)
+                source = "STREAM" if (self.rtl_stream is not None and self.rtl_stream.running) else "SNAPSHOT"
+                self.radio_status.setText(f"RX DEVICE   RTL-SDR LIVE\nFFT         256 BINS\nMODE        RECEIVE ONLY // {source}")
                 self.footer.setText(f"RVN-01 // RADIO // LIVE RX // {self.spectrum_canvas.center_hz / 1e6:.3f} MHz")
             else:
                 self.spectrum_canvas.live = False
-            del self.futures["RTLFFT"]
+
+    def closeEvent(self, event) -> None:
+        # rtl_stream, once opened, owns a dedicated background thread and an
+        # open RTL-SDR device handle -- it is not a QTimer (findChildren(QTimer)
+        # in qt_app.py's closeEvent won't see it) and start()/snapshot() only
+        # ever ran *on* self.executor, never *as* self.executor, so shutting
+        # the executor down (also in qt_app.py's closeEvent) doesn't stop the
+        # persistent thread either. Same precedent as qt_field_app.py's
+        # mesh_interface.close() override: stop our own resource, then let
+        # the chain's closeEvent do the rest.
+        if self.rtl_stream is not None:
+            try:
+                self.rtl_stream.stop()
+            except Exception:
+                pass
+        super().closeEvent(event)
 
     def _tune_preview(self) -> None:
         super()._tune_preview()
