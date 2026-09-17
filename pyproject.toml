@@ -19,7 +19,20 @@ dependencies = [
 [project.optional-dependencies]
 system = ["psutil>=6,<8"]
 mesh = ["meshtastic>=2,<3"]
-radio = ["numpy>=2,<3"]
+# pyrtlsdr wraps librtlsdr directly via ctypes and adds a continuous
+# streaming path (RtlSdrStream in map_radio_adapters.py) alongside the
+# existing rtl_sdr-CLI one-shot capture -- see that module for the full
+# rationale. GPL-3.0-or-later, same license family as the meshtastic/libzim
+# extras below. Pinned to the 0.5.x line specifically because 0.5.0 is the
+# version whose source (rtlsdr/rtlsdraio.py, rtlsdr/rtlsdr.py) this
+# integration was verified against; a future 0.6 could change stream()'s or
+# read_samples()'s behavior in ways nobody here has reviewed. The `[lib]`
+# extra pulls in `pyrtlsdrlib`, which bundles a prebuilt librtlsdr shared
+# library (MIT-licensed, manylinux aarch64 + x86_64 and win_amd64 wheels) so
+# this works without a separate system librtlsdr install on either the
+# RVN-01 target or this Windows dev box -- see the PR for why this couldn't
+# be verified against real hardware either way.
+radio = ["numpy>=2,<3", "pyrtlsdr[lib]>=0.5,<0.6"]
 # python-libzim (PyPI: libzim) is the official openZIM Python binding: a
 # compiled wheel (Cython + libzim C++) rather than pure Python, and
 # GPL-3.0-licensed, same license family as the meshtastic extra above. It
@@ -30,6 +43,7 @@ all-python = [
   "psutil>=6,<8",
   "meshtastic>=2,<3",
   "numpy>=2,<3",
+  "pyrtlsdr[lib]>=0.5,<0.6",
   "libzim>=3,<4",
 ]
 
