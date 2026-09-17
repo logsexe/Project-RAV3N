@@ -25,7 +25,14 @@ from PySide6.QtWidgets import (
 
 from . import theme
 from .engine import OperationsEngine
-from .live_services import meshtastic_nodes, network_interfaces, network_neighbours, open_meshtastic_interface
+from .live_services import (
+    meshtastic_nodes,
+    monitor_mode_capable,
+    network_interfaces,
+    network_neighbours,
+    open_meshtastic_interface,
+    wifi_scan,
+)
 from .maps import OfflineMapStore, Waypoint, bearing_distance
 from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
@@ -262,7 +269,7 @@ class FieldOSWindow(V29FieldOSWindow):
             self.ops_assets.addItem(f"[{asset.kind}] {asset.label}")
 
     def _network_ops_page(self) -> QWidget:
-        page, layout = self._shell("NETWORK", "Local interfaces // neighbours // authorised diagnostics")
+        page, layout = self._shell("NETWORK", "Local interfaces // neighbours // authorised Wi-Fi recon")
         self.network_status = QLabel("HOST        PROBING")
         self.network_status.setObjectName("body")
         layout.addWidget(self.network_status)
@@ -274,16 +281,31 @@ class FieldOSWindow(V29FieldOSWindow):
         left.addWidget(self.network_interfaces_list, 1)
         body.addLayout(left, 1)
 
-        right = QVBoxLayout()
-        right.addWidget(QLabel("NEIGHBOURS (ARP/ND)"))
+        mid = QVBoxLayout()
+        mid.addWidget(QLabel("NEIGHBOURS (ARP/ND)"))
         self.network_neighbours_list = QListWidget()
-        right.addWidget(self.network_neighbours_list, 1)
+        mid.addWidget(self.network_neighbours_list, 1)
+        body.addLayout(mid, 1)
+
+        right = QVBoxLayout()
+        right.addWidget(QLabel("WI-FI NETWORKS"))
+        self.network_wifi_list = QListWidget()
+        right.addWidget(self.network_wifi_list, 1)
         body.addLayout(right, 1)
         layout.addLayout(body, 1)
 
+        self.network_wifi_status = QLabel("MONITOR MODE   PROBING")
+        self.network_wifi_status.setObjectName("subtitle")
+        layout.addWidget(self.network_wifi_status)
+
+        row = QHBoxLayout()
         refresh = QPushButton("REFRESH LOCAL STATE")
         refresh.clicked.connect(self.refresh_local_state)
-        layout.addWidget(refresh)
+        row.addWidget(refresh)
+        self.wifi_scan_button = QPushButton("SCAN WI-FI (SENDS PROBE REQUESTS)")
+        self.wifi_scan_button.clicked.connect(self._scan_wifi)
+        row.addWidget(self.wifi_scan_button)
+        layout.addLayout(row)
         self._back(layout)
         return page
 
@@ -308,6 +330,20 @@ class FieldOSWindow(V29FieldOSWindow):
         for neighbour in neighbours:
             lladdr = neighbour.lladdr or "--"
             self.network_neighbours_list.addItem(f"{neighbour.address:<16} {lladdr:<18} {neighbour.device} {neighbour.state}")
+
+        monitor_ready = monitor_mode_capable()
+        self.network_wifi_status.setText(
+            f"MONITOR MODE   {'READY' if monitor_ready else 'NOT PRESENT'}   //   PASSIVE PACKET CAPTURE NOT YET IMPLEMENTED"
+        )
+
+    def _scan_wifi(self) -> None:
+        if "WIFISCAN" in self.futures:
+            return
+        self.wifi_scan_button.setEnabled(False)
+        self.network_wifi_list.clear()
+        self.network_wifi_list.addItem("SCANNING...")
+        self.footer.setText("RVN-01 // NETWORK // WI-FI SCAN // SENDING PROBE REQUESTS")
+        self._submit("WIFISCAN", wifi_scan)
 
     def _mesh_ops_page(self) -> QWidget:
         page, layout = self._shell("MESH", "Meshtastic nodes // operator-controlled messaging")
@@ -480,7 +516,28 @@ class FieldOSWindow(V29FieldOSWindow):
             except Exception:
                 mesh_connect_result = None
 
+        wifi_scan_future = self.futures.get("WIFISCAN")
+        wifi_scan_value = None
+        if wifi_scan_future is not None and wifi_scan_future.done():
+            try:
+                wifi_scan_value = wifi_scan_future.result()
+            except Exception:
+                wifi_scan_value = ()
+
         super()._collect_futures()
+
+        if wifi_scan_value is not None:
+            self.wifi_scan_button.setEnabled(True)
+            self.network_wifi_list.clear()
+            if wifi_scan_value:
+                for net in wifi_scan_value:
+                    signal = f"{net.signal}%" if net.signal is not None else "--"
+                    channel = str(net.channel) if net.channel is not None else "--"
+                    self.network_wifi_list.addItem(f"{net.ssid:<20} CH{channel:<4} {signal:<5} {net.security}")
+                self.footer.setText(f"RVN-01 // NETWORK // WI-FI SCAN // {len(wifi_scan_value)} NETWORK(S)")
+            else:
+                self.network_wifi_list.addItem("NO NETWORKS FOUND")
+                self.footer.setText("RVN-01 // NETWORK // WI-FI SCAN // NO NETWORKS FOUND")
 
         if mesh_nodes_value is not None:
             self.mesh_nodes_list.clear()

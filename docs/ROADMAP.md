@@ -19,8 +19,9 @@ FIELD//OS is a PySide6 (Qt) full-screen appliance shell with nine surfaces, offl
 
 RAV3N is being built for two overlapping audiences — security professionals doing authorised field work, and off-grid operators who need comms and navigation without infrastructure. See [Responsible use](../README.md#responsible-use) in the README before working on anything in this section.
 
+- [x] NETWORK Wi-Fi scan (nearby SSID/BSSID/channel/signal via the built-in `wlan0`, plus a monitor-mode capability check) — explicit-action only, since this sends 802.11 probe requests and is not passive
 - [ ] Select a dedicated Wi-Fi adapter for **passive** wireless recon (monitor mode; MediaTek MT7612U-class chipset preferred for mainline kernel support). No injection/attack tooling is planned at this stage.
-- [ ] Build a FIELD//OS WIFI surface — AP/client enumeration and signal mapping, following the same receive-only-by-default pattern as RADIO and MESH, gated through the existing `ProfileManager` (`fieldos/profiles.py`)
+- [ ] Wire real monitor-mode packet capture (AP/client enumeration, signal mapping) once that adapter exists — the current NETWORK Wi-Fi scan only covers the active-scan case above
 - [ ] Establish a measured power budget across SDR + LoRa + dual GNSS + Wi-Fi + display before finalising the battery system — see [Hardware REV A](#hardware-rev-a--physical-commissioning)
 - [ ] AI/ASSIST — `fieldos/offline_ai.py` (local Ollama adapter) is implemented but has no UI surface yet
 
