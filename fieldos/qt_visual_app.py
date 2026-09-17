@@ -6,7 +6,7 @@ import sys
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from .qt_app import FieldOSWindow as BaseFieldOSWindow, STYLE, _display_summary
+from .qt_app import FieldOSWindow as BaseFieldOSWindow, STYLE, _display_summary, load_bundled_fonts
 from .visual_surfaces import MapCanvas, SpectrumCanvas
 
 
@@ -104,7 +104,7 @@ def main() -> int:
     print("FIELD//OS // visual surfaces", flush=True); print(_display_summary(), flush=True)
     if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True); return 2
-    app = QApplication.instance() or QApplication(sys.argv); app.setStyleSheet(STYLE)
+    app = QApplication.instance() or QApplication(sys.argv); load_bundled_fonts(); app.setStyleSheet(STYLE)
     window = FieldOSWindow(); window.show() if "--windowed" in sys.argv else window.showFullScreen()
     print("FIELD//OS: Qt visual window created", flush=True); return app.exec()
 

@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication
 
 from .map_radio_adapters import discover_mbtiles, render_mbtiles_image, rtl_fft
 from .qt_visual_app import FieldOSWindow as VisualFieldOSWindow
-from .qt_app import STYLE, _display_summary
+from .qt_app import STYLE, _display_summary, load_bundled_fonts
 
 
 class FieldOSWindow(VisualFieldOSWindow):
@@ -168,6 +168,7 @@ def main() -> int:
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True)
         return 2
     app = QApplication.instance() or QApplication(sys.argv)
+    load_bundled_fonts()
     app.setStyleSheet(STYLE)
     window = FieldOSWindow()
     window.show() if "--windowed" in sys.argv else window.showFullScreen()

@@ -10,9 +10,10 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QTimer
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QColor, QFontDatabase, QKeyEvent
 from PySide6.QtWidgets import (
     QApplication,
+    QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -25,8 +26,43 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from fieldos import theme
 from fieldos.live_services import gpsd_fix, meshtastic_state, radio_state, system_metrics, zim_files
 from fieldos.service_registry import capability_text, services_for
+
+_FONTS_LOADED = False
+
+
+def load_bundled_fonts() -> None:
+    """Register fieldos/assets/fonts/*.ttf with Qt, once per process.
+
+    Safe to call from every tier's main(): idempotent (guarded so a second
+    call is a no-op) and fails silently if the file is missing or the
+    platform's font backend rejects it — theme.MONO_FONT lists it first in
+    an ordinary CSS-style font-family fallback stack, so if registration
+    never happens the UI just renders in the next font in that stack
+    (DejaVu Sans Mono / Consolas / Courier New) instead of erroring.
+    """
+    global _FONTS_LOADED
+    if _FONTS_LOADED:
+        return
+    _FONTS_LOADED = True
+    font_path = Path(__file__).parent / "assets" / "fonts" / "ShareTechMono-Regular.ttf"
+    try:
+        QFontDatabase.addApplicationFont(str(font_path))
+    except Exception:
+        pass
+
+
+def apply_glow(widget: QWidget, color: str = theme.ACCENT, blur: float = 16.0) -> QGraphicsDropShadowEffect:
+    """Soft phosphor-glow drop shadow. Qt's QSS has no text-shadow/box-shadow
+    equivalent, so this is done in code via QGraphicsEffect, not stylesheet."""
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setColor(QColor(color))
+    effect.setBlurRadius(blur)
+    effect.setOffset(0, 0)
+    widget.setGraphicsEffect(effect)
+    return effect
 
 APPS = (
     ("RADIO", "Receive-only RF"),
@@ -41,19 +77,22 @@ APPS = (
     ("SYSTEM", "RVN-01 status"),
 )
 
-STYLE = """
-QWidget { background:#050806; color:#d7f7df; font-family:'DejaVu Sans'; font-size:14px; }
-QLabel#bar { background:#09120c; color:#8cf5a7; padding:7px 10px; font-weight:700; }
-QLabel#hero { font-size:34px; font-weight:800; color:#ffffff; }
-QLabel#title { font-size:24px; font-weight:700; color:#ffffff; }
-QLabel#subtitle { color:#78a985; }
-QLabel#body { color:#c6e2cc; }
-QPushButton { background:#0b120d; border:1px solid #284b31; border-radius:8px; padding:9px; font-size:14px; font-weight:700; }
-QPushButton:hover, QPushButton:focus { background:#102116; border:2px solid #63ff88; }
-QPushButton#primary { background:#12341c; border:2px solid #63ff88; color:#ffffff; }
-QPushButton#tile { min-height:68px; text-align:left; }
-QLineEdit, QTextEdit { background:#020503; border:1px solid #284b31; color:#d7f7df; padding:8px; selection-background-color:#1f5d31; }
-QLineEdit:focus, QTextEdit:focus { border:2px solid #63ff88; }
+STYLE = f"""
+QWidget {{ background:{theme.BG}; color:{theme.TEXT}; font-family:{theme.MONO_FONT}; font-size:14px; }}
+QLabel#bar {{ background:{theme.PANEL}; color:{theme.ACCENT}; padding:7px 10px; font-weight:700; letter-spacing:1px; }}
+QLabel#hero {{ font-size:34px; font-weight:800; color:{theme.TEXT_BRIGHT}; letter-spacing:2px; }}
+QLabel#title {{ font-size:24px; font-weight:700; color:{theme.TEXT_BRIGHT}; letter-spacing:1px; }}
+QLabel#subtitle {{ color:{theme.TEXT_DIM}; }}
+QLabel#body {{ color:{theme.TEXT}; }}
+QPushButton {{ background:{theme.PANEL}; border:1px solid {theme.BORDER}; border-radius:{theme.RADIUS}; padding:10px; min-height:24px; font-family:{theme.MONO_FONT}; font-size:14px; font-weight:700; }}
+QPushButton:hover, QPushButton:focus {{ background:#102116; border:2px solid {theme.ACCENT}; }}
+QPushButton#primary {{ background:{theme.ACCENT_SOFT}; border:2px solid {theme.ACCENT}; color:{theme.TEXT_BRIGHT}; }}
+QPushButton#tile {{ min-height:68px; text-align:left; }}
+QLineEdit, QTextEdit {{ background:{theme.BG}; border:1px solid {theme.BORDER}; border-radius:{theme.RADIUS}; color:{theme.TEXT}; padding:8px; font-family:{theme.MONO_FONT}; selection-background-color:{theme.ACCENT_SOFT}; }}
+QLineEdit:focus, QTextEdit:focus {{ border:2px solid {theme.ACCENT}; }}
+QScrollBar:vertical {{ background:{theme.BG}; width:12px; border:1px solid {theme.BORDER_DIM}; }}
+QScrollBar::handle:vertical {{ background:{theme.BORDER}; min-height:24px; border-radius:{theme.RADIUS}; }}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height:0px; }}
 """
 
 
@@ -93,8 +132,10 @@ class FieldOSWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
         self.top = QLabel(); self.top.setObjectName("bar"); root.addWidget(self.top)
+        apply_glow(self.top)
         self.stack = QStackedWidget(); root.addWidget(self.stack, 1)
         self.footer = QLabel(); self.footer.setObjectName("bar"); root.addWidget(self.footer)
+        apply_glow(self.footer, blur=12.0)
         self.setCentralWidget(shell)
 
         self.home = self._home()
@@ -316,7 +357,7 @@ def main() -> int:
     print("FIELD//OS V2.4 DEV // PySide6 startup", flush=True); print(_display_summary(), flush=True)
     if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("FIELD//OS: no graphical display is available in this shell. Run from the RVN-01 desktop session or attach the active display session.", file=sys.stderr, flush=True); return 2
-    app = QApplication.instance() or QApplication(sys.argv); app.setStyleSheet(STYLE); window = FieldOSWindow(); window.show() if "--windowed" in sys.argv else window.showFullScreen(); print("FIELD//OS: Qt window created", flush=True); return app.exec()
+    app = QApplication.instance() or QApplication(sys.argv); load_bundled_fonts(); app.setStyleSheet(STYLE); window = FieldOSWindow(); window.show() if "--windowed" in sys.argv else window.showFullScreen(); print("FIELD//OS: Qt window created", flush=True); return app.exec()
 
 
 if __name__ == "__main__": raise SystemExit(main())

@@ -38,3 +38,12 @@ fieldos = "fieldos.qt_v3_health_app:main"
 
 [tool.setuptools.packages.find]
 include = ["fieldos*"]
+
+[tool.setuptools.package-data]
+# Bundled font (Share Tech Mono, SIL OFL 1.1) + its license file. Needed
+# here because [packages.find] only decides which Python packages get
+# included, not which non-.py data files inside them ship in a built wheel.
+# Editable installs (`pip install -e .`, what this project always uses) read
+# straight from the source tree regardless, so this only matters for a
+# real `pip install .` / wheel build — included for correctness either way.
+fieldos = ["assets/fonts/*.ttf", "assets/fonts/*.txt"]
