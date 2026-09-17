@@ -69,12 +69,12 @@ class NetworkMeshSurfaceTests(unittest.TestCase):
         self.window.wifi_toggle.setChecked(True)
         self.qt_app.processEvents()
         self.assertTrue(self.window.wifi_panel.isVisible())
-        self.assertIn("▾", self.window.wifi_toggle.text())
+        self.assertIn("v", self.window.wifi_toggle.text())
 
         self.window.wifi_toggle.setChecked(False)
         self.qt_app.processEvents()
         self.assertFalse(self.window.wifi_panel.isVisible())
-        self.assertIn("▸", self.window.wifi_toggle.text())
+        self.assertIn(">", self.window.wifi_toggle.text())
 
     def test_wifi_scan_is_not_triggered_automatically(self) -> None:
         # Unlike interfaces/neighbours, a Wi-Fi scan sends probe requests and

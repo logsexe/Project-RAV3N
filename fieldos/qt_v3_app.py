@@ -21,21 +21,21 @@ from PySide6.QtWidgets import (
 
 from . import theme
 from .knowledge import KnowledgeEntry, KnowledgeIndex
-from .qt_app import _display_summary, load_bundled_fonts
+from .qt_app import _display_summary, build_tile_button, load_bundled_fonts
 from .qt_field_app import FieldOSWindow as V29FieldOSWindow, V29_STYLE
 from .system_health import HealthSnapshot, collect_health_snapshot
 
 
 V3_APPS = (
-    ("RADIO", "◉", "RX / SPECTRUM"),
-    ("NAVIGATION", "⌖", "MAP / GPS"),
-    ("MESH", "⌁", "NODES / MESSAGES"),
-    ("NETWORK", "◎", "LOCAL / DEVICES"),
-    ("OPS", "◇", "MISSION / EVIDENCE"),
-    ("LIBRARY", "▤", "OFFLINE KNOWLEDGE"),
-    ("FILES", "▱", "LOCAL STORAGE"),
-    ("TERMINAL", ">_", "OPERATOR SHELL"),
-    ("RVN-01", "◆", "SYSTEM / HARDWARE"),
+    ("RADIO", "radio", "RX / SPECTRUM"),
+    ("NAVIGATION", "nav", "MAP / GPS"),
+    ("MESH", "mesh", "NODES / MESSAGES"),
+    ("NETWORK", "network", "LOCAL / DEVICES"),
+    ("OPS", "ops", "MISSION / EVIDENCE"),
+    ("LIBRARY", "library", "OFFLINE KNOWLEDGE"),
+    ("FILES", "files", "LOCAL STORAGE"),
+    ("TERMINAL", "terminal", "OPERATOR SHELL"),
+    ("RVN-01", "system", "SYSTEM / HARDWARE"),
 )
 
 KNOWLEDGE_SECTIONS = (
@@ -57,13 +57,14 @@ V3_STYLE = V29_STYLE + f"""
 QListWidget {{
     background:{theme.BG};
     color:{theme.TEXT};
-    border:1px solid {theme.BORDER};
+    border:1px solid {theme.BORDER_DIM};
     border-radius:{theme.RADIUS};
-    padding:4px;
+    padding:6px;
     font-family:{theme.MONO_FONT};
 }}
-QListWidget::item {{ padding:6px; }}
+QListWidget::item {{ padding:7px 6px; border-radius:6px; }}
 QListWidget::item:selected {{ background:{theme.ACCENT_SOFT}; color:{theme.TEXT_BRIGHT}; }}
+QListWidget::item:hover {{ background:{theme.SURFACE_HOVER}; }}
 QPushButton#knowledgeSection {{
     min-height:34px;
     padding:5px 7px;
@@ -72,13 +73,13 @@ QPushButton#knowledgeSection {{
 }}
 QPushButton#knowledgeSection:checked {{
     background:{theme.ACCENT_SOFT};
-    border:2px solid {theme.ACCENT};
+    border:1px solid {theme.ACCENT};
     color:{theme.TEXT_BRIGHT};
 }}
 QWidget#healthPanel {{
-    background:{theme.PANEL};
+    background:{theme.SURFACE};
     border:1px solid {theme.BORDER_DIM};
-    border-radius:{theme.RADIUS};
+    border-radius:{theme.RADIUS_LG};
 }}
 QLabel#healthTitle {{
     color:{theme.ACCENT};
@@ -166,16 +167,13 @@ class FieldOSWindow(V29FieldOSWindow):
         grid.setHorizontalSpacing(7)
         grid.setVerticalSpacing(7)
         self.buttons = []
-        for i, (name, glyph, desc) in enumerate(V3_APPS):
-            button = QPushButton(f"{glyph}   {name}\n      {desc}")
-            button.setObjectName("appCard")
-            button.setMinimumHeight(88)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        for i, (name, kind, desc) in enumerate(V3_APPS):
+            button = build_tile_button(name, kind, desc)
             button.clicked.connect(lambda checked=False, n=name: self.open_app(n))
             grid.addWidget(button, i // 3, i % 3)
             self.buttons.append(button)
-        layout.addLayout(grid, 1)
+        layout.addLayout(grid)
+        layout.addStretch(1)
 
         hint = QLabel("TOUCH / ENTER OPEN   •   ESC APPLICATIONS   •   CTRL+Q EXIT")
         hint.setObjectName("launcherHint")

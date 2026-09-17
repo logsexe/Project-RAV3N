@@ -15,11 +15,11 @@ from .rvn_status import RVNStatus, collect_rvn_status
 
 HEALTH_STYLE = V3_STYLE + f"""
 QLabel#rvnPanel {{
-    background:{theme.PANEL};
+    background:{theme.SURFACE};
     color:{theme.TEXT};
-    border:1px solid {theme.BORDER};
+    border:1px solid {theme.BORDER_DIM};
     border-radius:{theme.RADIUS};
-    padding:8px;
+    padding:10px;
     font-family:{theme.MONO_FONT};
     font-size:11px;
 }}
