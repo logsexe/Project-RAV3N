@@ -6,6 +6,7 @@ import sys
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider, QVBoxLayout, QWidget
 
+from .gps_live import GPSSnapshot, gpsd_snapshot
 from .qt_app import FieldOSWindow as BaseFieldOSWindow, STYLE, _display_summary, load_bundled_fonts
 from .visual_surfaces import MapCanvas, SpectrumCanvas
 
@@ -20,11 +21,15 @@ class FieldOSWindow(BaseFieldOSWindow):
         self.preview_timer = QTimer(self)
         self.preview_timer.timeout.connect(self._preview_tick)
         # A lightweight watchdog replaces a permanent 5.5 Hz hidden animation.
+        # The same timer also polls gpsd only while NAVIGATION is visible.
         self.preview_timer.start(500)
 
     def _preview_tick(self) -> None:
-        if self.stack.currentWidget() is self.pages.get("RADIO") and not self.spectrum_canvas.live:
+        current = self.stack.currentWidget()
+        if current is self.pages.get("RADIO") and not self.spectrum_canvas.live:
             self.spectrum_canvas.advance_preview()
+        if current in {self.pages.get("MAP"), self.pages.get("NAVIGATION")} and "GPSLIVE" not in self.futures:
+            self._submit("GPSLIVE", gpsd_snapshot)
 
     def _replace_page(self, name: str, page: QWidget) -> None:
         old = self.pages[name]
@@ -108,20 +113,56 @@ class FieldOSWindow(BaseFieldOSWindow):
         self.spectrum_canvas.set_frequency(int(mhz * 1_000_000))
         self.footer.setText(f"RVN-01 // RADIO // {mhz:.3f} MHz // RX PREVIEW")
 
+    @staticmethod
+    def _gps_status_text(snapshot: GPSSnapshot) -> str:
+        sat_seen = "--" if snapshot.satellites is None else str(snapshot.satellites)
+        sat_used = "--" if snapshot.satellites_used is None else str(snapshot.satellites_used)
+        device = snapshot.device or "--"
+        receiver = snapshot.driver or "--"
+
+        if snapshot.latitude is None or snapshot.longitude is None:
+            position = "LAT --   LON --"
+        else:
+            position = f"LAT {snapshot.latitude:.6f}   LON {snapshot.longitude:.6f}"
+
+        altitude = "--" if snapshot.altitude is None else f"{snapshot.altitude:.1f} m"
+        speed = "--" if snapshot.speed is None else f"{snapshot.speed * 3.6:.1f} km/h"
+        track = "--" if snapshot.track is None else f"{snapshot.track:.0f} deg"
+
+        return (
+            f"GPS {snapshot.fix_label:<10}   SAT {sat_used}/{sat_seen} USED   {device}\n"
+            f"{position}\n"
+            f"ALT {altitude}   SPEED {speed}   TRACK {track}\n"
+            f"RX {receiver}"
+        )
+
     def _collect_futures(self) -> None:
         map_future = self.futures.get("MAP")
         radio_future = self.futures.get("RADIO")
+        gps_live_future = self.futures.get("GPSLIVE")
         map_value = None
         radio_value = None
+        gps_live_value = None
         if map_future is not None and map_future.done():
             try: map_value = map_future.result()
             except Exception: pass
         if radio_future is not None and radio_future.done():
             try: radio_value = radio_future.result()
             except Exception: pass
+        if gps_live_future is not None and gps_live_future.done():
+            try: gps_live_value = gps_live_future.result()
+            except Exception: pass
         super()._collect_futures()
         if map_value is not None:
             self.map_canvas.set_fix(map_value.latitude, map_value.longitude, map_value.track, map_value.state)
+        if gps_live_value is not None:
+            self.map_canvas.set_fix(
+                gps_live_value.latitude,
+                gps_live_value.longitude,
+                gps_live_value.track,
+                gps_live_value.state,
+            )
+            self.map_status.setText(self._gps_status_text(gps_live_value))
         if radio_value is not None:
             self.spectrum_canvas.live = False
             if radio_value.rtl_sdr:
