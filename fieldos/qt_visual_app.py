@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 import sys
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider, QVBoxLayout, QWidget
 
 from .qt_app import FieldOSWindow as BaseFieldOSWindow, STYLE, _display_summary, load_bundled_fonts
 from .visual_surfaces import MapCanvas, SpectrumCanvas
@@ -47,6 +47,12 @@ class FieldOSWindow(BaseFieldOSWindow):
         layout.addLayout(row); self._back(layout)
         return page
 
+    # Slider covers whole-MHz steps across the full preview range; the text
+    # field stays available for typing an exact sub-MHz value (e.g. a known
+    # FM station at 100.3 MHz) that the slider's resolution can't express.
+    TUNE_SLIDER_MIN_MHZ = 1
+    TUNE_SLIDER_MAX_MHZ = 1800
+
     def _radio_visual_page(self) -> QWidget:
         page, layout = self._shell("RADIO", "Receive-only spectrum // waterfall")
         self.spectrum_canvas = SpectrumCanvas()
@@ -54,15 +60,32 @@ class FieldOSWindow(BaseFieldOSWindow):
         self.radio_status = QLabel("RX DEVICE   PROBING")
         self.radio_status.setObjectName("body")
         layout.addWidget(self.radio_status)
+
+        slider_row = QHBoxLayout()
+        slider_row.addWidget(QLabel(f"{self.TUNE_SLIDER_MIN_MHZ}"))
+        self.frequency_slider = QSlider(Qt.Orientation.Horizontal)
+        self.frequency_slider.setMinimum(self.TUNE_SLIDER_MIN_MHZ)
+        self.frequency_slider.setMaximum(self.TUNE_SLIDER_MAX_MHZ)
+        self.frequency_slider.setValue(100)
+        self.frequency_slider.valueChanged.connect(self._on_frequency_slider_changed)
+        slider_row.addWidget(self.frequency_slider, 1)
+        slider_row.addWidget(QLabel(f"{self.TUNE_SLIDER_MAX_MHZ}"))
+        layout.addLayout(slider_row)
+
         row = QHBoxLayout()
         self.frequency_input = QLineEdit("100.000")
         self.frequency_input.setPlaceholderText("MHz")
+        self.frequency_input.returnPressed.connect(self._tune_preview)
         row.addWidget(self.frequency_input)
         tune = QPushButton("TUNE"); tune.clicked.connect(self._tune_preview); row.addWidget(tune)
         refresh = QPushButton("REFRESH SDR"); refresh.clicked.connect(lambda: self.refresh_module("RADIO")); row.addWidget(refresh)
         companion = QPushButton("OPEN SDR TOOL"); companion.clicked.connect(lambda: self.launch_first_service("RADIO")); row.addWidget(companion)
         layout.addLayout(row); self._back(layout)
         return page
+
+    def _on_frequency_slider_changed(self, value: int) -> None:
+        self.frequency_input.setText(f"{value:.3f}")
+        self._tune_preview()
 
     def _tune_preview(self) -> None:
         try:
@@ -73,6 +96,15 @@ class FieldOSWindow(BaseFieldOSWindow):
         if not 0.1 <= mhz <= 1800:
             self.footer.setText("RVN-01 // RADIO // FREQUENCY OUT OF PREVIEW RANGE")
             return
+        # Keep the slider's dial position in sync with a value typed directly
+        # into the text field, without re-triggering _on_frequency_slider_changed
+        # (which would overwrite a typed sub-MHz value like 100.300 with the
+        # slider's rounded "100.000").
+        slider_value = round(mhz)
+        if self.TUNE_SLIDER_MIN_MHZ <= slider_value <= self.TUNE_SLIDER_MAX_MHZ and self.frequency_slider.value() != slider_value:
+            self.frequency_slider.blockSignals(True)
+            self.frequency_slider.setValue(slider_value)
+            self.frequency_slider.blockSignals(False)
         self.spectrum_canvas.set_frequency(int(mhz * 1_000_000))
         self.footer.setText(f"RVN-01 // RADIO // {mhz:.3f} MHz // RX PREVIEW")
 
