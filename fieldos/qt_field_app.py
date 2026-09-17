@@ -23,12 +23,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import theme
 from .engine import OperationsEngine
 from .live_services import meshtastic_nodes, network_interfaces, network_neighbours, open_meshtastic_interface
 from .maps import OfflineMapStore, Waypoint, bearing_distance
 from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
-from .qt_app import STYLE, _display_summary
+from .qt_app import STYLE, _display_summary, load_bundled_fonts
 from .visual_surfaces import MapCanvas
 
 
@@ -52,23 +53,24 @@ def _human_size(num: float) -> str:
     return f"{num:.1f}TB"
 
 
-V29_STYLE = STYLE + """
-QWidget#fieldLauncher { background:#030604; }
-QLabel#launcherBrand { color:#ffffff; font-size:20px; font-weight:800; letter-spacing:2px; }
-QLabel#launcherMeta { color:#6f9d7a; font-size:11px; font-weight:700; }
-QLabel#launcherHint { color:#496b52; font-size:10px; }
-QPushButton#appCard {
-    background:#08100b;
-    color:#effff3;
-    border:1px solid #1e4028;
-    border-radius:12px;
+V29_STYLE = STYLE + f"""
+QWidget#fieldLauncher {{ background:{theme.BG}; }}
+QLabel#launcherBrand {{ color:{theme.TEXT_BRIGHT}; font-size:20px; font-weight:800; letter-spacing:3px; font-family:{theme.MONO_FONT}; }}
+QLabel#launcherMeta {{ color:{theme.TEXT_FAINT}; font-size:11px; font-weight:700; letter-spacing:1px; }}
+QLabel#launcherHint {{ color:{theme.TEXT_FAINT}; font-size:10px; }}
+QPushButton#appCard {{
+    background:{theme.PANEL};
+    color:{theme.TEXT_BRIGHT};
+    border:1px solid {theme.BORDER_DIM};
+    border-radius:{theme.RADIUS};
     padding:8px 10px;
     text-align:left;
+    font-family:{theme.MONO_FONT};
     font-size:14px;
     font-weight:800;
-}
-QPushButton#appCard:hover, QPushButton#appCard:focus { background:#0d1c12; border:2px solid #63ff88; }
-QPushButton#appCard:pressed { background:#14331d; }
+}}
+QPushButton#appCard:hover, QPushButton#appCard:focus {{ background:#0d1c12; border:2px solid {theme.ACCENT}; }}
+QPushButton#appCard:pressed {{ background:{theme.ACCENT_SOFT}; }}
 """
 
 
@@ -840,7 +842,7 @@ def main() -> int:
     print(_display_summary(), flush=True)
     if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True); return 2
-    app = QApplication.instance() or QApplication(sys.argv); app.setStyleSheet(V29_STYLE)
+    app = QApplication.instance() or QApplication(sys.argv); load_bundled_fonts(); app.setStyleSheet(V29_STYLE)
     window = FieldOSWindow(); window.show() if "--windowed" in sys.argv else window.showFullScreen()
     print("FIELD//OS: V2.9 graphical field-computer window created", flush=True)
     return app.exec()

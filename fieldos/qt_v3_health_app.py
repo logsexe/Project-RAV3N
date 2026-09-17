@@ -7,21 +7,22 @@ from concurrent.futures import Future
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
-from .qt_app import _display_summary
+from . import theme
+from .qt_app import _display_summary, load_bundled_fonts
 from .qt_v3_app import FieldOSWindow as LibraryFieldOSWindow, V3_STYLE
 from .rvn_status import RVNStatus, collect_rvn_status
 
 
-HEALTH_STYLE = V3_STYLE + """
-QLabel#rvnPanel {
-    background:#07100a;
-    color:#d7f7df;
-    border:1px solid #284b31;
-    border-radius:8px;
+HEALTH_STYLE = V3_STYLE + f"""
+QLabel#rvnPanel {{
+    background:{theme.PANEL};
+    color:{theme.TEXT};
+    border:1px solid {theme.BORDER};
+    border-radius:{theme.RADIUS};
     padding:8px;
-    font-family:'DejaVu Sans Mono';
+    font-family:{theme.MONO_FONT};
     font-size:11px;
-}
+}}
 """
 
 
@@ -111,6 +112,7 @@ def main() -> int:
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True)
         return 2
     app = QApplication.instance() or QApplication(sys.argv)
+    load_bundled_fonts()
     app.setStyleSheet(HEALTH_STYLE)
     window = FieldOSWindow()
     window.show() if "--windowed" in sys.argv else window.showFullScreen()

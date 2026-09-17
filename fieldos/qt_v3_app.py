@@ -19,8 +19,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import theme
 from .knowledge import KnowledgeEntry, KnowledgeIndex
-from .qt_app import _display_summary
+from .qt_app import _display_summary, load_bundled_fonts
 from .qt_field_app import FieldOSWindow as V29FieldOSWindow, V29_STYLE
 from .system_health import HealthSnapshot, collect_health_snapshot
 
@@ -52,42 +53,45 @@ KNOWLEDGE_SECTIONS = (
     ("GENERAL", {"general", "reference"}),
 )
 
-V3_STYLE = V29_STYLE + """
-QListWidget {
-    background:#020503;
-    color:#d7f7df;
-    border:1px solid #284b31;
+V3_STYLE = V29_STYLE + f"""
+QListWidget {{
+    background:{theme.BG};
+    color:{theme.TEXT};
+    border:1px solid {theme.BORDER};
+    border-radius:{theme.RADIUS};
     padding:4px;
-}
-QListWidget::item { padding:5px; }
-QListWidget::item:selected { background:#12341c; color:#ffffff; }
-QPushButton#knowledgeSection {
+    font-family:{theme.MONO_FONT};
+}}
+QListWidget::item {{ padding:6px; }}
+QListWidget::item:selected {{ background:{theme.ACCENT_SOFT}; color:{theme.TEXT_BRIGHT}; }}
+QPushButton#knowledgeSection {{
     min-height:34px;
     padding:5px 7px;
     font-size:11px;
     text-align:center;
-}
-QPushButton#knowledgeSection:checked {
-    background:#12341c;
-    border:2px solid #63ff88;
-    color:#ffffff;
-}
-QWidget#healthPanel {
-    background:#071009;
-    border:1px solid #1e4028;
-    border-radius:8px;
-}
-QLabel#healthTitle {
-    color:#8cf5a7;
+}}
+QPushButton#knowledgeSection:checked {{
+    background:{theme.ACCENT_SOFT};
+    border:2px solid {theme.ACCENT};
+    color:{theme.TEXT_BRIGHT};
+}}
+QWidget#healthPanel {{
+    background:{theme.PANEL};
+    border:1px solid {theme.BORDER_DIM};
+    border-radius:{theme.RADIUS};
+}}
+QLabel#healthTitle {{
+    color:{theme.ACCENT};
     font-size:12px;
     font-weight:800;
     letter-spacing:1px;
-}
-QLabel#healthBody {
-    color:#d7f7df;
-    font-family:'DejaVu Sans Mono';
+    font-family:{theme.MONO_FONT};
+}}
+QLabel#healthBody {{
+    color:{theme.TEXT};
+    font-family:{theme.MONO_FONT};
     font-size:11px;
-}
+}}
 """
 
 
@@ -384,6 +388,7 @@ def main() -> int:
         print("FIELD//OS: no graphical display is available in this shell.", file=sys.stderr, flush=True)
         return 2
     app = QApplication.instance() or QApplication(sys.argv)
+    load_bundled_fonts()
     app.setStyleSheet(V3_STYLE)
     window = FieldOSWindow()
     window.show() if "--windowed" in sys.argv else window.showFullScreen()
