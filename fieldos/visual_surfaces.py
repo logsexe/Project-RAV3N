@@ -13,7 +13,6 @@ MUTED = QColor("#315a3b")
 GRID = QColor("#17301d")
 TEXT = QColor("#bcebc7")
 BG = QColor("#020503")
-AMBER = QColor("#ffcf5c")
 
 
 class MapCanvas(QWidget):
@@ -29,7 +28,6 @@ class MapCanvas(QWidget):
         self.trail: deque[tuple[float, float]] = deque(maxlen=80)
         self.map_background: QPixmap | None = None
         self.map_label = "GRID"
-        self.waypoints: list[tuple[float, float, str]] = []
 
     def set_fix(self, latitude: float | None, longitude: float | None, track: float | None, state: str) -> None:
         self.latitude, self.longitude, self.track, self.fix_state = latitude, longitude, track, state
@@ -42,10 +40,6 @@ class MapCanvas(QWidget):
     def set_background(self, pixmap: QPixmap | None, label: str = "GRID") -> None:
         self.map_background = pixmap
         self.map_label = label
-        self.update()
-
-    def set_waypoints(self, waypoints: list[tuple[float, float, str]]) -> None:
-        self.waypoints = list(waypoints)
         self.update()
 
     def paintEvent(self, _event) -> None:
@@ -86,17 +80,6 @@ class MapCanvas(QWidget):
         heading = math.radians(self.track or 0.0)
         p.drawLine(QPointF(cx, cy), QPointF(cx + math.sin(heading) * 25, cy - math.cos(heading) * 25))
         p.setPen(TEXT); p.drawText(10, 38, f"LAT {self.latitude:.6f}   LON {self.longitude:.6f}   HDG {(self.track or 0):.0f}°")
-
-        p.setFont(QFont("DejaVu Sans Mono", 8))
-        for lat, lon, label in self.waypoints:
-            x = cx + (lon - self.longitude) * 70000
-            y = cy - (lat - self.latitude) * 70000
-            if not (0 <= x <= w and 0 <= y <= h):
-                continue
-            p.setPen(QPen(AMBER, 2)); p.setBrush(QColor(255, 207, 92, 60))
-            p.drawEllipse(QPointF(x, y), 5, 5)
-            p.setPen(AMBER)
-            p.drawText(QPointF(x + 8, y + 4), label)
 
 
 class SpectrumCanvas(QWidget):

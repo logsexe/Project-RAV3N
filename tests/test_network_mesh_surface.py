@@ -55,6 +55,27 @@ class NetworkMeshSurfaceTests(unittest.TestCase):
             self.qt_app.processEvents()
         self.assertIn("MONITOR MODE   READY", self.window.network_wifi_status.text())
 
+    def test_wifi_panel_is_collapsed_by_default(self) -> None:
+        self.window.open_app("NETWORK")
+        self.qt_app.processEvents()
+        self.assertFalse(self.window.wifi_panel.isVisible())
+        self.assertFalse(self.window.wifi_toggle.isChecked())
+
+    def test_wifi_toggle_shows_and_hides_the_panel(self) -> None:
+        self.window.show()
+        self.window.open_app("NETWORK")
+        self.qt_app.processEvents()
+
+        self.window.wifi_toggle.setChecked(True)
+        self.qt_app.processEvents()
+        self.assertTrue(self.window.wifi_panel.isVisible())
+        self.assertIn("▾", self.window.wifi_toggle.text())
+
+        self.window.wifi_toggle.setChecked(False)
+        self.qt_app.processEvents()
+        self.assertFalse(self.window.wifi_panel.isVisible())
+        self.assertIn("▸", self.window.wifi_toggle.text())
+
     def test_wifi_scan_is_not_triggered_automatically(self) -> None:
         # Unlike interfaces/neighbours, a Wi-Fi scan sends probe requests and
         # must only ever run on an explicit operator click - never on the
