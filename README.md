@@ -32,7 +32,7 @@ The home screen is intentionally limited to **9 primary applications**:
 | **RADIO** | Receive-only SDR and spectrum |
 | **NAVIGATION** | Offline maps, GPS, waypoints and tracks |
 | **MESH** | Meshtastic nodes and operator-controlled messaging |
-| **NETWORK** | Local interfaces, devices and authorised diagnostics |
+| **NETWORK** | Local interfaces, ARP/ND neighbours, and an explicit-action Wi-Fi network scan |
 | **OPS** | Operations, evidence and timeline |
 | **LIBRARY** | Categorised offline knowledge and references |
 | **FILES** | Local storage and operation files |
@@ -100,7 +100,7 @@ See the [RVN-01 Hardware BOM](hardware/bom/RVN-01-BOM.md) for the current confir
 
 ## Current focus
 
-1. Select and commission a dedicated Wi-Fi adapter for passive wireless recon (monitor mode, no injection/attack tooling planned at this stage), and build the FIELD//OS surface for it, gated through the existing operator-profile system
+1. NETWORK now has an explicit-action Wi-Fi scan (nearby SSID/BSSID/channel/signal via the built-in `wlan0`, and a monitor-mode capability check) — this is an *active* scan (it sends 802.11 probe requests), not the passive monitor-mode capture the roadmap calls for. That still needs a dedicated monitor-mode-capable adapter, which hasn't been selected yet; no injection/attack tooling is planned at any stage
 2. Establish a real, measured power budget across SDR/LoRa/GNSS/Wi-Fi/display before finalising the battery system — the single most safety-critical unresolved item for an off-grid device
 3. Commission arriving hardware modules
 4. Refine appliance boot and recovery behaviour

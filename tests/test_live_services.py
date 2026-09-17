@@ -10,9 +10,12 @@ from fieldos.live_services import (
     MeshNode,
     NetworkInterface,
     NetworkNeighbour,
+    WifiNetwork,
     meshtastic_nodes,
+    monitor_mode_capable,
     network_interfaces,
     network_neighbours,
+    wifi_scan,
 )
 
 
@@ -285,6 +288,74 @@ class MeshtasticNodesTests(unittest.TestCase):
         with patch("fieldos.live_services.open_meshtastic_interface", return_value=BrokenInterface()):
             result = meshtastic_nodes()
         self.assertEqual(result, (MeshNode("!abc123", "Base Camp", "1234"),))
+
+
+class MonitorModeCapableTests(unittest.TestCase):
+    def test_no_iw_binary_is_not_capable(self) -> None:
+        with patch("fieldos.live_services.shutil.which", return_value=None):
+            self.assertFalse(monitor_mode_capable())
+
+    def test_monitor_mode_listed_is_capable(self) -> None:
+        output = "Wiphy phy0\n\tSupported interface modes:\n\t\t * IBSS\n\t\t * managed\n\t\t * monitor\n"
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/sbin/iw" if name == "iw" else None), patch(
+            "fieldos.live_services._run", return_value=_completed(output)
+        ):
+            self.assertTrue(monitor_mode_capable())
+
+    def test_monitor_mode_absent_is_not_capable(self) -> None:
+        output = "Wiphy phy0\n\tSupported interface modes:\n\t\t * IBSS\n\t\t * managed\n\t\t * AP\n"
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/sbin/iw" if name == "iw" else None), patch(
+            "fieldos.live_services._run", return_value=_completed(output)
+        ):
+            self.assertFalse(monitor_mode_capable())
+
+    def test_iw_command_failure_is_not_capable(self) -> None:
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/sbin/iw" if name == "iw" else None), patch(
+            "fieldos.live_services._run", return_value=None
+        ):
+            self.assertFalse(monitor_mode_capable())
+
+
+class WifiScanTests(unittest.TestCase):
+    def test_no_nmcli_binary_returns_empty(self) -> None:
+        with patch("fieldos.live_services.shutil.which", return_value=None):
+            self.assertEqual(wifi_scan(), ())
+
+    def test_scan_failure_returns_empty(self) -> None:
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/bin/nmcli" if name == "nmcli" else None), patch(
+            "fieldos.live_services._run", return_value=_completed("", returncode=1)
+        ):
+            self.assertEqual(wifi_scan(), ())
+
+    def test_parses_multiline_output_with_escaped_bssid_colons(self) -> None:
+        output = "SSID:HomeNet\nBSSID:AA\\:BB\\:CC\\:DD\\:EE\\:FF\nCHAN:6\nSIGNAL:72\nSECURITY:WPA2\n"
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/bin/nmcli" if name == "nmcli" else None), patch(
+            "fieldos.live_services._run", return_value=_completed(output)
+        ):
+            result = wifi_scan()
+        self.assertEqual(result, (WifiNetwork("HomeNet", "AA:BB:CC:DD:EE:FF", 6, 72, "WPA2"),))
+
+    def test_multiple_networks_and_hidden_ssid(self) -> None:
+        output = (
+            "SSID:HomeNet\nBSSID:AA\\:BB\\:CC\\:DD\\:EE\\:FF\nCHAN:6\nSIGNAL:72\nSECURITY:WPA2\n"
+            "SSID:\nBSSID:11\\:22\\:33\\:44\\:55\\:66\nCHAN:11\nSIGNAL:40\nSECURITY:\n"
+        )
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/bin/nmcli" if name == "nmcli" else None), patch(
+            "fieldos.live_services._run", return_value=_completed(output)
+        ):
+            result = wifi_scan()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[1].ssid, "(HIDDEN)")
+        self.assertEqual(result[1].security, "OPEN")
+
+    def test_respects_limit(self) -> None:
+        chunk = "SSID:Net{i}\nBSSID:AA\\:BB\\:CC\\:DD\\:EE\\:{i:02X}\nCHAN:1\nSIGNAL:50\nSECURITY:WPA2\n"
+        output = "".join(chunk.format(i=i) for i in range(5))
+        with patch("fieldos.live_services.shutil.which", side_effect=lambda name: "/usr/bin/nmcli" if name == "nmcli" else None), patch(
+            "fieldos.live_services._run", return_value=_completed(output)
+        ):
+            result = wifi_scan(limit=2)
+        self.assertEqual(len(result), 2)
 
 
 if __name__ == "__main__":

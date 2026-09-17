@@ -58,6 +58,15 @@ class MeshNode:
     last_heard: str | None = None
 
 
+@dataclass(frozen=True)
+class WifiNetwork:
+    ssid: str
+    bssid: str
+    channel: int | None
+    signal: int | None
+    security: str
+
+
 def _run(args: list[str], timeout: float = 1.5) -> subprocess.CompletedProcess[str] | None:
     try:
         return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
@@ -401,6 +410,89 @@ def radio_state() -> RadioState:
             rtl = "found" in text and "device" in text
     state = "READY" if rtl else "NO SDR"
     return RadioState(state, rtl, gqrx, sdrpp)
+
+
+def monitor_mode_capable() -> bool:
+    """Whether any local Wi-Fi radio advertises monitor-mode support.
+
+    Read-only hardware capability check via `iw list` (Linux). This is
+    deliberately just a capability probe, not a mode change: RVN-01 doesn't
+    have a dedicated monitor-mode adapter yet (see hardware/bom), and this
+    function's only job is to report READY/NOT PRESENT honestly once one is
+    added — it never puts an interface into monitor mode itself.
+    """
+    if not shutil.which("iw"):
+        return False
+    result = _run(["iw", "list"], timeout=3.0)
+    if not result or result.returncode != 0:
+        return False
+    return "* monitor" in result.stdout.lower()
+
+
+def wifi_scan(limit: int = 25) -> tuple[WifiNetwork, ...]:
+    """Nearby Wi-Fi networks via `nmcli` (NetworkManager).
+
+    NOT passive: unlike gpsd_fix()/network_interfaces()/network_neighbours(),
+    which only ever read state the kernel already has, a Wi-Fi network scan
+    typically sends 802.11 probe requests over the air, which is detectable
+    by anything listening nearby. Callers must treat this as an explicit,
+    operator-initiated action - never run it on an automatic refresh timer
+    the way interface/neighbour listing is. See README "Responsible use".
+
+    Returns () if `nmcli` is unavailable, the built-in wlan0 has no Wi-Fi
+    radio, or the scan fails for any reason.
+    """
+    if not shutil.which("nmcli"):
+        return ()
+    result = _run(["nmcli", "-t", "-m", "multiline", "-f", "SSID,BSSID,CHAN,SIGNAL,SECURITY", "device", "wifi", "list"], timeout=8.0)
+    if not result or result.returncode != 0 or not result.stdout.strip():
+        return ()
+    return tuple(_parse_nmcli_wifi_list(result.stdout))[:limit]
+
+
+def _parse_nmcli_wifi_list(output: str) -> list[WifiNetwork]:
+    """Parse `nmcli -t -m multiline -f SSID,BSSID,CHAN,SIGNAL,SECURITY device wifi list`.
+
+    Multiline mode (one "FIELD:value" per line, a new record starting each
+    time SSID reappears) is used instead of nmcli's default terse mode
+    specifically because BSSID is a MAC address: it contains colons, and
+    terse mode's own field separator is also a colon. nmcli backslash-escapes
+    colons *inside* a value in both modes (e.g. `BSSID:AA\\:BB\\:CC\\:DD\\:EE\\:FF`),
+    so every value below is unescaped after splitting on the first
+    unescaped colon.
+    """
+    networks: list[WifiNetwork] = []
+    current: dict[str, str] = {}
+
+    def flush() -> None:
+        if not current:
+            return
+        ssid = current.get("SSID", "").strip()
+        bssid = current.get("BSSID", "").strip()
+        if not bssid:
+            return
+        channel = None
+        if current.get("CHAN", "").strip().isdigit():
+            channel = int(current["CHAN"].strip())
+        signal = None
+        if current.get("SIGNAL", "").strip().isdigit():
+            signal = int(current["SIGNAL"].strip())
+        security = current.get("SECURITY", "").strip() or "OPEN"
+        networks.append(WifiNetwork(ssid or "(HIDDEN)", bssid, channel, signal, security))
+
+    for line in output.splitlines():
+        if not line:
+            continue
+        field, sep, value = line.partition(":")
+        if not sep:
+            continue
+        value = value.replace("\\:", ":")
+        if field == "SSID" and "SSID" in current:
+            flush()
+            current = {}
+        current[field] = value
+    flush()
+    return networks
 
 
 def zim_files() -> tuple[Path, ...]:

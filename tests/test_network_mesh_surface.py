@@ -4,11 +4,13 @@ import os
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
+from fieldos.live_services import WifiNetwork
 from fieldos.qt_field_app import FieldOSWindow
 
 
@@ -46,6 +48,56 @@ class NetworkMeshSurfaceTests(unittest.TestCase):
         self.assertGreaterEqual(self.window.network_interfaces_list.count(), 1)
         self.assertGreaterEqual(self.window.network_neighbours_list.count(), 1)
         self.assertIn("HOST", self.window.network_status.text())
+
+    def test_network_page_reports_monitor_mode_status(self) -> None:
+        with patch("fieldos.qt_field_app.monitor_mode_capable", return_value=True):
+            self.window.open_app("NETWORK")
+            self.qt_app.processEvents()
+        self.assertIn("MONITOR MODE   READY", self.window.network_wifi_status.text())
+
+    def test_wifi_scan_is_not_triggered_automatically(self) -> None:
+        # Unlike interfaces/neighbours, a Wi-Fi scan sends probe requests and
+        # must only ever run on an explicit operator click - never on the
+        # periodic refresh_local_state() timer.
+        with patch("fieldos.qt_field_app.wifi_scan") as mock_scan:
+            self.window.open_app("NETWORK")
+            self.qt_app.processEvents()
+            self.window.refresh_local_state()
+            self.qt_app.processEvents()
+        mock_scan.assert_not_called()
+
+    def test_wifi_scan_button_disables_during_scan_and_populates_results(self) -> None:
+        networks = (WifiNetwork("HomeNet", "AA:BB:CC:DD:EE:FF", 6, 72, "WPA2"),)
+        with patch("fieldos.qt_field_app.wifi_scan", return_value=networks):
+            self.window.open_app("NETWORK")
+            self.qt_app.processEvents()
+            self.window._scan_wifi()
+            self.assertFalse(self.window.wifi_scan_button.isEnabled())
+            self._drain_futures("WIFISCAN")
+
+        self.assertTrue(self.window.wifi_scan_button.isEnabled())
+        self.assertEqual(self.window.network_wifi_list.count(), 1)
+        self.assertIn("HomeNet", self.window.network_wifi_list.item(0).text())
+        self.assertIn("1 NETWORK(S)", self.window.footer.text())
+
+    def test_wifi_scan_with_no_results_reports_clearly(self) -> None:
+        with patch("fieldos.qt_field_app.wifi_scan", return_value=()):
+            self.window.open_app("NETWORK")
+            self.qt_app.processEvents()
+            self.window._scan_wifi()
+            self._drain_futures("WIFISCAN")
+        self.assertEqual(self.window.network_wifi_list.count(), 1)
+        self.assertIn("NO NETWORKS FOUND", self.window.network_wifi_list.item(0).text())
+
+    def test_wifi_scan_clicked_again_while_in_flight_does_not_resubmit(self) -> None:
+        with patch("fieldos.qt_field_app.wifi_scan", return_value=()) as mock_scan:
+            self.window.open_app("NETWORK")
+            self.qt_app.processEvents()
+            self.window._scan_wifi()
+            self.window._scan_wifi()
+            self.window._scan_wifi()
+            self._drain_futures("WIFISCAN")
+        self.assertEqual(mock_scan.call_count, 1)
 
     def test_mesh_page_reports_node_state_without_crashing(self) -> None:
         self.window.open_app("MESH")
