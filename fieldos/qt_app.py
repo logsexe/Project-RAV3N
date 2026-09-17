@@ -9,8 +9,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt, QTimer
-from PySide6.QtGui import QColor, QFontDatabase, QKeyEvent
+from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QFontDatabase, QKeyEvent, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QGraphicsDropShadowEffect,
@@ -64,6 +64,117 @@ def apply_glow(widget: QWidget, color: str = theme.ACCENT, blur: float = 16.0) -
     widget.setGraphicsEffect(effect)
     return effect
 
+
+def draw_tile_icon(kind: str, size: int = 28, color: str = theme.ACCENT) -> QPixmap:
+    """Hand-drawn outline icon for a launcher tile.
+
+    Drawn with QPainter primitives rather than bundling an icon font or
+    image assets, matching how MapCanvas/SpectrumCanvas already draw their
+    surfaces in visual_surfaces.py -- no new dependency, no new licensing
+    surface for a field-deployed offline build.
+    """
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor(color), max(1.4, size * 0.06))
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    s = float(size)
+
+    if kind == "radio":
+        p.drawEllipse(QPointF(s * 0.5, s * 0.64), s * 0.06, s * 0.06)
+        p.drawLine(QPointF(s * 0.5, s * 0.58), QPointF(s * 0.5, s * 0.22))
+        p.drawArc(QRectF(s * 0.3, s * 0.3, s * 0.4, s * 0.4), 35 * 16, 110 * 16)
+        p.drawArc(QRectF(s * 0.16, s * 0.16, s * 0.68, s * 0.68), 35 * 16, 110 * 16)
+    elif kind == "nav":
+        path = QPainterPath()
+        path.moveTo(s * 0.5, s * 0.12)
+        path.cubicTo(s * 0.8, s * 0.12, s * 0.8, s * 0.5, s * 0.5, s * 0.86)
+        path.cubicTo(s * 0.2, s * 0.5, s * 0.2, s * 0.12, s * 0.5, s * 0.12)
+        p.drawPath(path)
+        p.drawEllipse(QPointF(s * 0.5, s * 0.36), s * 0.11, s * 0.11)
+    elif kind == "mesh":
+        points = [(0.5, 0.14), (0.83, 0.34), (0.83, 0.68), (0.5, 0.88), (0.17, 0.68), (0.17, 0.34)]
+        for x, y in points:
+            p.drawLine(QPointF(s * 0.5, s * 0.5), QPointF(s * x, s * y))
+        for x, y in points:
+            p.drawEllipse(QPointF(s * x, s * y), s * 0.06, s * 0.06)
+        p.drawEllipse(QPointF(s * 0.5, s * 0.5), s * 0.05, s * 0.05)
+    elif kind == "network":
+        p.drawEllipse(QRectF(s * 0.12, s * 0.12, s * 0.76, s * 0.76))
+        p.drawEllipse(QRectF(s * 0.34, s * 0.12, s * 0.32, s * 0.76))
+        p.drawLine(QPointF(s * 0.14, s * 0.5), QPointF(s * 0.86, s * 0.5))
+    elif kind == "ops":
+        p.drawRoundedRect(QRectF(s * 0.22, s * 0.16, s * 0.56, s * 0.72), s * 0.06, s * 0.06)
+        for y in (0.38, 0.52, 0.66):
+            p.drawLine(QPointF(s * 0.34, s * y), QPointF(s * 0.66, s * y))
+    elif kind == "library":
+        p.drawRoundedRect(QRectF(s * 0.18, s * 0.16, s * 0.64, s * 0.68), s * 0.05, s * 0.05)
+        p.drawLine(QPointF(s * 0.5, s * 0.16), QPointF(s * 0.5, s * 0.84))
+    elif kind == "files":
+        path = QPainterPath()
+        path.moveTo(s * 0.15, s * 0.28)
+        path.lineTo(s * 0.42, s * 0.28)
+        path.lineTo(s * 0.5, s * 0.37)
+        path.lineTo(s * 0.85, s * 0.37)
+        path.lineTo(s * 0.85, s * 0.76)
+        path.lineTo(s * 0.15, s * 0.76)
+        path.closeSubpath()
+        p.drawPath(path)
+    elif kind == "terminal":
+        p.drawRoundedRect(QRectF(s * 0.14, s * 0.2, s * 0.72, s * 0.6), s * 0.06, s * 0.06)
+        p.drawLine(QPointF(s * 0.27, s * 0.4), QPointF(s * 0.39, s * 0.5))
+        p.drawLine(QPointF(s * 0.39, s * 0.5), QPointF(s * 0.27, s * 0.6))
+        p.drawLine(QPointF(s * 0.47, s * 0.6), QPointF(s * 0.63, s * 0.6))
+    else:  # "system"
+        p.drawRoundedRect(QRectF(s * 0.3, s * 0.3, s * 0.4, s * 0.4), s * 0.03, s * 0.03)
+        for pos in (0.24, 0.5, 0.76):
+            p.drawLine(QPointF(s * pos, s * 0.1), QPointF(s * pos, s * 0.3))
+            p.drawLine(QPointF(s * pos, s * 0.7), QPointF(s * pos, s * 0.9))
+            p.drawLine(QPointF(s * 0.1, s * pos), QPointF(s * 0.3, s * pos))
+            p.drawLine(QPointF(s * 0.7, s * pos), QPointF(s * 0.9, s * pos))
+    p.end()
+    return pixmap
+
+
+def build_tile_button(name: str, kind: str, desc: str) -> QPushButton:
+    """Launcher tile: hand-drawn icon + a two-tone title/subtitle stack.
+
+    A plain single-string QPushButton can't give the subtitle its own
+    (dimmer, smaller) color via QSS, so the tile is a QPushButton carrying
+    a child layout of separately styled labels instead -- QPushButton stays
+    the clickable/hoverable/focusable widget (background, border, radius,
+    hover state all still come from the #appCard QSS rule), the labels
+    just render its content. QLabel doesn't grab mouse events by default,
+    so clicks still reach the button underneath.
+    """
+    button = QPushButton()
+    button.setObjectName("appCard")
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setMinimumHeight(88)
+    button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    row = QHBoxLayout(button)
+    row.setContentsMargins(14, 10, 10, 10)
+    row.setSpacing(12)
+    icon = QLabel()
+    icon.setPixmap(draw_tile_icon(kind, 26))
+    icon.setFixedSize(26, 26)
+    row.addWidget(icon)
+    text = QVBoxLayout()
+    text.setSpacing(2)
+    title = QLabel(name)
+    title.setStyleSheet(f"color:{theme.TEXT_BRIGHT}; font-weight:500; font-size:14px; background:transparent;")
+    subtitle = QLabel(desc)
+    subtitle.setStyleSheet(f"color:{theme.TEXT_DIM}; font-size:11px; background:transparent;")
+    text.addWidget(title)
+    text.addWidget(subtitle)
+    row.addLayout(text, 1)
+    return button
+
 APPS = (
     ("RADIO", "Receive-only RF"),
     ("MAP", "Offline navigation"),
@@ -77,22 +188,34 @@ APPS = (
     ("SYSTEM", "RVN-01 status"),
 )
 
+# Chrome (navigation, buttons, headings, tile titles) reads in UI_FONT, a
+# system sans stack; actual data/telemetry (status readouts, lists, typed
+# input, the top bar/footer) stays in MONO_FONT so the app still reads as
+# an instrument rather than a generic app -- a common split in modern
+# dashboards (Grafana/Datadog-style: sans chrome, monospace data).
 STYLE = f"""
-QWidget {{ background:{theme.BG}; color:{theme.TEXT}; font-family:{theme.MONO_FONT}; font-size:14px; }}
-QLabel#bar {{ background:{theme.PANEL}; color:{theme.ACCENT}; padding:7px 10px; font-weight:700; letter-spacing:1px; }}
-QLabel#hero {{ font-size:34px; font-weight:800; color:{theme.TEXT_BRIGHT}; letter-spacing:2px; }}
-QLabel#title {{ font-size:24px; font-weight:700; color:{theme.TEXT_BRIGHT}; letter-spacing:1px; }}
+QWidget {{ background:{theme.BG}; color:{theme.TEXT}; font-family:{theme.UI_FONT}; font-size:14px; }}
+QLabel#bar {{ background:{theme.PANEL}; color:{theme.ACCENT}; padding:9px 12px; font-family:{theme.MONO_FONT}; font-weight:700; letter-spacing:1px; }}
+QLabel#hero {{ font-size:32px; font-weight:500; color:{theme.TEXT_BRIGHT}; letter-spacing:0.5px; }}
+QLabel#title {{ font-size:22px; font-weight:500; color:{theme.TEXT_BRIGHT}; letter-spacing:0.5px; }}
 QLabel#subtitle {{ color:{theme.TEXT_DIM}; }}
-QLabel#body {{ color:{theme.TEXT}; }}
-QPushButton {{ background:{theme.PANEL}; border:1px solid {theme.BORDER}; border-radius:{theme.RADIUS}; padding:10px; min-height:24px; font-family:{theme.MONO_FONT}; font-size:14px; font-weight:700; }}
-QPushButton:hover, QPushButton:focus {{ background:#102116; border:2px solid {theme.ACCENT}; }}
-QPushButton#primary {{ background:{theme.ACCENT_SOFT}; border:2px solid {theme.ACCENT}; color:{theme.TEXT_BRIGHT}; }}
-QPushButton#tile {{ min-height:68px; text-align:left; }}
-QLineEdit, QTextEdit {{ background:{theme.BG}; border:1px solid {theme.BORDER}; border-radius:{theme.RADIUS}; color:{theme.TEXT}; padding:8px; font-family:{theme.MONO_FONT}; selection-background-color:{theme.ACCENT_SOFT}; }}
-QLineEdit:focus, QTextEdit:focus {{ border:2px solid {theme.ACCENT}; }}
-QScrollBar:vertical {{ background:{theme.BG}; width:12px; border:1px solid {theme.BORDER_DIM}; }}
-QScrollBar::handle:vertical {{ background:{theme.BORDER}; min-height:24px; border-radius:{theme.RADIUS}; }}
+QLabel#body {{ color:{theme.TEXT}; font-family:{theme.MONO_FONT}; font-size:13px; }}
+QPushButton {{ background:{theme.SURFACE}; border:1px solid {theme.BORDER_DIM}; border-radius:{theme.RADIUS}; padding:10px 14px; min-height:24px; font-family:{theme.UI_FONT}; font-size:14px; font-weight:500; }}
+QPushButton:hover, QPushButton:focus {{ background:{theme.SURFACE_HOVER}; border:1px solid {theme.ACCENT}; }}
+QPushButton:pressed {{ background:{theme.ACCENT_SOFT}; }}
+QPushButton#primary {{ background:{theme.ACCENT_SOFT}; border:1px solid {theme.ACCENT}; color:{theme.TEXT_BRIGHT}; font-weight:700; }}
+QPushButton#tile {{ min-height:68px; text-align:left; border-radius:{theme.RADIUS_LG}; }}
+QLineEdit, QTextEdit {{ background:{theme.BG}; border:1px solid {theme.BORDER_DIM}; border-radius:{theme.RADIUS}; color:{theme.TEXT}; padding:8px 10px; font-family:{theme.MONO_FONT}; selection-background-color:{theme.ACCENT_SOFT}; }}
+QLineEdit:focus, QTextEdit:focus {{ border:1px solid {theme.ACCENT}; }}
+QScrollBar:vertical {{ background:{theme.BG}; width:10px; border:none; }}
+QScrollBar::handle:vertical {{ background:{theme.BORDER_DIM}; min-height:24px; border-radius:5px; }}
+QScrollBar::handle:vertical:hover {{ background:{theme.BORDER}; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height:0px; }}
+QSlider::groove:horizontal {{ background:{theme.BORDER_DIM}; height:4px; border-radius:2px; }}
+QSlider::sub-page:horizontal {{ background:{theme.ACCENT}; height:4px; border-radius:2px; }}
+QSlider::add-page:horizontal {{ background:{theme.BORDER_DIM}; height:4px; border-radius:2px; }}
+QSlider::handle:horizontal {{ background:{theme.ACCENT}; border:2px solid {theme.BG}; width:14px; height:14px; margin:-6px 0; border-radius:8px; }}
+QSlider::handle:horizontal:hover {{ background:{theme.TEXT_BRIGHT}; }}
 """
 
 

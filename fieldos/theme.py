@@ -13,6 +13,10 @@ from __future__ import annotations
 
 BG = "#020503"
 PANEL = "#080f0a"
+# Cards/tiles sit one step above PANEL so grouped content reads as a
+# distinct layer (elevation) rather than a flat wash of the same dark green.
+SURFACE = "#111b14"
+SURFACE_HOVER = "#17251a"
 BORDER = "#284b31"
 BORDER_DIM = "#17301d"
 
@@ -33,6 +37,14 @@ ERROR = "#ff6b6b"
 # name in this ordinary CSS-style font-family stack.
 MONO_FONT = "'Share Tech Mono','DejaVu Sans Mono','Consolas','Courier New',monospace"
 
-RADIUS = "2px"
+# System sans stack for UI chrome (labels, buttons, tile titles). Reserved
+# for navigation/structure; actual data/telemetry (status text, lists,
+# typed input, the top bar/footer) stays on MONO_FONT so the app still
+# reads as an instrument, not a generic app -- see qt_app.STYLE's
+# QLabel#body/QLineEdit/QListWidget overrides.
+UI_FONT = "'Segoe UI','Noto Sans','DejaVu Sans','Helvetica Neue',sans-serif"
+
+RADIUS = "10px"
+RADIUS_LG = "16px"
 
 STATUS_COLORS = {"OK": ACCENT, "WARN": WARN, "ERROR": ERROR, "NEUTRAL": TEXT_DIM}

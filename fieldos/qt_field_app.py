@@ -34,20 +34,20 @@ from .live_services import (
 )
 from .operations import OperationSessionManager
 from .qt_map_radio_app import FieldOSWindow as V29FieldOSWindow
-from .qt_app import STYLE, _display_summary, load_bundled_fonts
+from .qt_app import STYLE, _display_summary, build_tile_button, load_bundled_fonts
 from .visual_surfaces import MapCanvas
 
 
 FIELD_APPS = (
-    ("RADIO", "◉", "RX / SPECTRUM"),
-    ("NAVIGATION", "⌖", "MAP / GPS / WAYPOINTS"),
-    ("MESH", "⌁", "NODES / MESSAGES"),
-    ("NETWORK", "◎", "LOCAL / DEVICES"),
-    ("OPS", "◇", "MISSION / EVIDENCE"),
-    ("LIBRARY", "▤", "OFFLINE KNOWLEDGE"),
-    ("FILES", "▱", "LOCAL STORAGE"),
-    ("TERMINAL", ">_", "OPERATOR SHELL"),
-    ("RVN-01", "◆", "SYSTEM / HARDWARE"),
+    ("RADIO", "radio", "RX / SPECTRUM"),
+    ("NAVIGATION", "nav", "MAP / GPS"),
+    ("MESH", "mesh", "NODES / MESSAGES"),
+    ("NETWORK", "network", "LOCAL / DEVICES"),
+    ("OPS", "ops", "MISSION / EVIDENCE"),
+    ("LIBRARY", "library", "OFFLINE KNOWLEDGE"),
+    ("FILES", "files", "LOCAL STORAGE"),
+    ("TERMINAL", "terminal", "OPERATOR SHELL"),
+    ("RVN-01", "system", "SYSTEM / HARDWARE"),
 )
 
 def _human_size(num: float) -> str:
@@ -60,21 +60,22 @@ def _human_size(num: float) -> str:
 
 V29_STYLE = STYLE + f"""
 QWidget#fieldLauncher {{ background:{theme.BG}; }}
-QLabel#launcherBrand {{ color:{theme.TEXT_BRIGHT}; font-size:20px; font-weight:800; letter-spacing:3px; font-family:{theme.MONO_FONT}; }}
-QLabel#launcherMeta {{ color:{theme.TEXT_FAINT}; font-size:11px; font-weight:700; letter-spacing:1px; }}
+QLabel#launcherBrand {{ color:{theme.TEXT_BRIGHT}; font-size:19px; font-weight:500; letter-spacing:1px; font-family:{theme.MONO_FONT}; }}
+QLabel#launcherMeta {{ color:{theme.TEXT_FAINT}; font-size:11px; font-weight:500; letter-spacing:0.5px; }}
 QLabel#launcherHint {{ color:{theme.TEXT_FAINT}; font-size:10px; }}
 QPushButton#appCard {{
-    background:{theme.PANEL};
+    background:{theme.SURFACE};
     color:{theme.TEXT_BRIGHT};
     border:1px solid {theme.BORDER_DIM};
-    border-radius:{theme.RADIUS};
-    padding:8px 10px;
+    border-radius:{theme.RADIUS_LG};
+    padding:12px 14px;
     text-align:left;
-    font-family:{theme.MONO_FONT};
+    font-family:{theme.UI_FONT};
     font-size:14px;
-    font-weight:800;
+    font-weight:500;
+    icon-size:26px;
 }}
-QPushButton#appCard:hover, QPushButton#appCard:focus {{ background:#0d1c12; border:2px solid {theme.ACCENT}; }}
+QPushButton#appCard:hover, QPushButton#appCard:focus {{ background:{theme.SURFACE_HOVER}; border:1px solid {theme.ACCENT}; }}
 QPushButton#appCard:pressed {{ background:{theme.ACCENT_SOFT}; }}
 """
 
@@ -283,7 +284,7 @@ class FieldOSWindow(V29FieldOSWindow):
         body.addLayout(right, 1)
         layout.addLayout(body, 1)
 
-        self.wifi_toggle = QPushButton("▸ WI-FI RECON")
+        self.wifi_toggle = QPushButton("> WI-FI RECON")
         self.wifi_toggle.setCheckable(True)
         self.wifi_toggle.toggled.connect(self._toggle_wifi_panel)
         layout.addWidget(self.wifi_toggle)
@@ -311,7 +312,7 @@ class FieldOSWindow(V29FieldOSWindow):
 
     def _toggle_wifi_panel(self, checked: bool) -> None:
         self.wifi_panel.setVisible(checked)
-        self.wifi_toggle.setText(("▾" if checked else "▸") + " WI-FI RECON")
+        self.wifi_toggle.setText(("v" if checked else ">") + " WI-FI RECON")
 
     def refresh_local_state(self) -> None:
         super().refresh_local_state()
@@ -766,11 +767,11 @@ class FieldOSWindow(V29FieldOSWindow):
         meta = QLabel("FIELD//OS 2.9   •   OFFLINE FIELD COMPUTER   •   SELECT APPLICATION"); meta.setObjectName("launcherMeta"); layout.addWidget(meta)
         grid = QGridLayout(); grid.setHorizontalSpacing(7); grid.setVerticalSpacing(7); grid.setContentsMargins(0, 3, 0, 2)
         self.buttons = []
-        for i, (name, glyph, desc) in enumerate(FIELD_APPS):
-            button = QPushButton(f"{glyph}   {name}\n      {desc}")
-            button.setObjectName("appCard"); button.setCursor(Qt.CursorShape.PointingHandCursor); button.setMinimumHeight(88); button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        for i, (name, kind, desc) in enumerate(FIELD_APPS):
+            button = build_tile_button(name, kind, desc)
             button.clicked.connect(lambda checked=False, n=name: self.open_app(n)); grid.addWidget(button, i // 3, i % 3); self.buttons.append(button)
-        layout.addLayout(grid, 1)
+        layout.addLayout(grid)
+        layout.addStretch(1)
         hint = QLabel("TOUCH / ENTER OPEN   •   ESC APPLICATIONS   •   CTRL+Q EXIT"); hint.setObjectName("launcherHint"); hint.setAlignment(Qt.AlignmentFlag.AlignCenter); layout.addWidget(hint)
         return page
 
